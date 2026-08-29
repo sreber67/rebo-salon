@@ -1,8 +1,12 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { adminAuth } from '@/lib/firebaseAdmin';
+import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { validateRequest, emailRequestSchema, createAuditLog, logAudit } from '@/lib/validation';
+
+// Server-side source of truth for the salon's own inbox - never trust a
+// client-supplied value for this.
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'rick.maity07@gmail.com';
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -28,7 +32,11 @@ export async function POST(req: NextRequest) {
     }
 
     userId = decodedToken.uid;
-    userRole = decodedToken.admin ? 'admin' : 'user';
+    // Role lives on the Firestore user doc, not a custom claim (nothing ever
+    // sets one) - look it up server-side rather than trusting the client.
+    const callerSnap = await adminDb.doc(`users/${userId}`).get();
+    const isCallerAdmin = callerSnap.exists && callerSnap.data()?.role === 'admin';
+    userRole = isCallerAdmin ? 'admin' : 'user';
 
     // Validate request body
     const body = await req.json();
@@ -44,6 +52,21 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, subject, message, fromEmail, fromName } = validation.data;
+
+    // Non-admins may only trigger an email to themselves or to the salon's
+    // own inbox (the two legitimate self-service flows: booking/OTP
+    // confirmations, and "notify the salon of a new request"). Anything else
+    // requires admin, which covers the admin-panel flows that email other
+    // customers about their appointments.
+    if (!isCallerAdmin) {
+      const callerEmail = decodedToken.email?.toLowerCase();
+      const targetEmail = email.toLowerCase();
+      if (targetEmail !== callerEmail && targetEmail !== ADMIN_EMAIL.toLowerCase()) {
+        const auditLog = createAuditLog(req, userId, userRole, 'email_send', undefined, 'notification', false, 'Recipient not permitted for non-admin caller');
+        logAudit(auditLog);
+        return NextResponse.json({ error: 'Forbidden: you may only email yourself or the salon' }, { status: 403 });
+      }
+    }
 
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_PASS;

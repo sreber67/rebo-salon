@@ -589,7 +589,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (status === 'confirmed' && appt.status !== 'confirmed') {
         if (sendsms && appt.phone) {
           const cleanPhone = appt.phone.replace(/\s+/g, '');
-          fetch('/api/sms', { method: 'POST', headers: await getAuthHeaders(), body: JSON.stringify({ phone: cleanPhone, message: `Rebo Salon: Dein Termin am ${finalDate} um ${finalTime} Uhr ist bestätigt!` }) }).catch(()=>{});
+          fetch('/api/sms', { method: 'POST', headers: await getAuthHeaders(), body: JSON.stringify({ phone: cleanPhone, message: `Rebo Salon: Dein Termin am ${finalDate} um ${finalTime} Uhr ist bestätigt!`, appointmentId: id }) }).catch(()=>{});
         }
         
         await addDoc(collection(db, 'alerts'), { userId: appt.userId, message: `${tAlert.confirmed1} ${finalDate} ${tCommon.at} ${finalTime} ${tAlert.confirmed2}`, isRead: false, link: 'profile', createdAt: Date.now() });

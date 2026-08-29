@@ -17,6 +17,13 @@ export const smsRequestSchema = z.object({
     .min(10)
     .max(15),
   message: z.string().min(1).max(1600).transform(s => s.trim()),
+  // Ties the send to a real appointment so authorization can check
+  // ownership directly, instead of matching against the caller's
+  // (possibly since-changed) profile phone number. Optional because
+  // admin-only sends (waitlist notify, resend confirmation) have no
+  // ownership check to make - required only for non-admin callers,
+  // enforced in the route itself.
+  appointmentId: z.string().min(1).optional(),
 });
 
 export type SmsRequest = z.infer<typeof smsRequestSchema>;

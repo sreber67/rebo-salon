@@ -15,7 +15,19 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, write: if isOwnerOrAdmin(userId);
+      allow read: if isOwnerOrAdmin(userId);
+      // Self-registration must land as a plain user - role can never be
+      // set to 'admin' by the client, only ever granted by an existing admin.
+      allow create: if isOwner(userId) && request.resource.data.role == 'user';
+      // Owners may edit their own profile, but not their own `role` - that
+      // field previously had no such guard, letting any signed-in user
+      // write role:'admin' onto their own doc and self-promote, since every
+      // isAdmin() check (and the whole client-side admin gate) trusts this
+      // field. Only an admin may change someone's role.
+      allow update: if isAdmin() || (
+        isOwner(userId) && request.resource.data.role == resource.data.role
+      );
+      allow delete: if isOwnerOrAdmin(userId);
     }
 
     match /appointments/{apptId} {
@@ -39,7 +51,10 @@ service cloud.firestore {
           )
         )
       );
-      allow delete: if isAdmin();
+      // Owners need to be able to delete their own appointments as part of
+      // full account erasure (AccountDeletionModal batch-deletes them) -
+      // admin-only delete made that batch fail with permission-denied.
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
     }
 
     match /services/{document=**} {

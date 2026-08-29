@@ -1,8 +1,10 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
-import { adminAuth } from '@/lib/firebaseAdmin';
+import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { validateRequest, smsRequestSchema, createAuditLog, logAudit } from '@/lib/validation';
+
+const normalizePhone = (p: string) => p.replace(/\s+/g, '');
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -28,7 +30,12 @@ export async function POST(req: NextRequest) {
     }
 
     userId = decodedToken.uid;
-    userRole = decodedToken.admin ? 'admin' : 'user';
+    // Role lives on the Firestore user doc, not a custom claim (nothing ever
+    // sets one) - look it up server-side rather than trusting the client.
+    const callerSnap = await adminDb.doc(`users/${userId}`).get();
+    const callerData = callerSnap.exists ? callerSnap.data() : undefined;
+    const isCallerAdmin = callerData?.role === 'admin';
+    userRole = isCallerAdmin ? 'admin' : 'user';
 
     // Validate request body
     const body = await req.json();
@@ -43,7 +50,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { phone, message } = validation.data;
+    const { phone, message, appointmentId } = validation.data;
+
+    // Non-admins may only trigger an SMS tied to an appointment they own,
+    // and only to that appointment's own phone number - checked against the
+    // appointment record itself (not the caller's live profile phone, which
+    // may have since been changed independently via Settings) so this can't
+    // be used to text an arbitrary number. Covers the self-service "accept
+    // my reschedule" flow; anything else requires admin, which covers the
+    // admin-panel confirmation flow that texts other customers.
+    if (!isCallerAdmin) {
+      const apptSnap = appointmentId ? await adminDb.doc(`appointments/${appointmentId}`).get() : undefined;
+      const apptData = apptSnap?.exists ? apptSnap.data() : undefined;
+      const isOwnAppointment = !!appointmentId && apptData?.userId === userId;
+      const phoneMatchesAppointment = typeof apptData?.phone === 'string' && normalizePhone(apptData.phone) === normalizePhone(phone);
+      if (!isOwnAppointment || !phoneMatchesAppointment) {
+        const auditLog = createAuditLog(req, userId, userRole, 'sms_send', appointmentId, 'appointment', false, 'Recipient not permitted for non-admin caller');
+        logAudit(auditLog);
+        return NextResponse.json({ error: 'Forbidden: you may only text the phone number on your own appointment' }, { status: 403 });
+      }
+    }
 
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
