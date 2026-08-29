@@ -1683,7 +1683,7 @@ function ContactView() {
 
       <div className="w-full lg:w-1/2 h-[50vh] min-h-96 lg:min-h-0 lg:h-auto relative bg-gray-900 mt-8 lg:mt-0">
         <iframe 
-          src="https://maps.google.com/maps?q=Manggasse%206,%2097421%20Schweinfurt,%20Germany&t=&z=16&ie=UTF8&iwloc=&output=embed" 
+          src="https://maps.google.com/maps?q=Rebo%20Salon,%20Manggasse%206,%2097421%20Schweinfurt,%20Germany&t=&z=16&ie=UTF8&iwloc=&output=embed" 
           className="absolute inset-0 w-full h-full"
           style={{ border: 0 }} 
           allowFullScreen 
