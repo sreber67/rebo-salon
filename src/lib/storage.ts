@@ -1,24 +1,25 @@
 'use client';
 
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { app } from '@/lib/firebase';
-
 /**
- * Firebase Storage utility for reference images
- * Stores images in Firebase Storage instead of base64 in Firestore
+ * Cloudinary Storage utility for reference images and site assets
+ * Completely replaces Firebase Storage for 100% free hosting
  */
 
 // Allowed image types and max size
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB raw upload cap — files are resized/compressed below before upload
 const MAX_DIMENSION = 1024; // Max width/height in pixels
 const COMPRESSION_QUALITY = 0.8;
 
-/**
- * Validates an image file before upload
- */
 export function validateImageFile(file: File): { valid: boolean; error?: string } {
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  const hasAllowedType = ALLOWED_TYPES.includes(file.type);
+  const hasAllowedExtension = ALLOWED_EXTENSIONS.includes(extension);
+  // Some browsers (especially on Android/Windows) leave file.type blank or
+  // unrecognized for HEIC/HEIF photos straight off a phone camera, so fall
+  // back to checking the file extension before rejecting it.
+  if (!hasAllowedType && !hasAllowedExtension) {
     return { valid: false, error: 'Nur JPEG, PNG, WEBP, HEIC/HEIF Dateien erlaubt' };
   }
   if (file.size > MAX_FILE_SIZE) {
@@ -27,10 +28,6 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   return { valid: true };
 }
 
-/**
- * Compresses and resizes an image file
- * Strips EXIF data in the process
- */
 export async function processImageFile(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -43,7 +40,6 @@ export async function processImageFile(file: File): Promise<Blob> {
     }
 
     img.onload = () => {
-      // Calculate new dimensions maintaining aspect ratio
       let { width, height } = img;
       if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
         if (width > height) {
@@ -57,18 +53,12 @@ export async function processImageFile(file: File): Promise<Blob> {
 
       canvas.width = width;
       canvas.height = height;
-
-      // Draw image (this strips EXIF data)
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Convert to blob with compression
       canvas.toBlob(
         (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Image compression failed'));
-          }
+          if (blob) resolve(blob);
+          else reject(new Error('Image compression failed'));
         },
         'image/jpeg',
         COMPRESSION_QUALITY
@@ -81,73 +71,88 @@ export async function processImageFile(file: File): Promise<Blob> {
 }
 
 /**
- * Uploads a reference image to Firebase Storage
- * Returns the download URL
+ * Uploads a reference image to Cloudinary (Public & Free)
  */
 export async function uploadReferenceImage(
   userId: string,
   appointmentId: string,
   file: File
 ): Promise<string> {
-  // Validate file
   const validation = validateImageFile(file);
-  if (!validation.valid) {
-    throw new Error(validation.error);
+  if (!validation.valid) throw new Error(validation.error || 'Invalid file');
+
+  const processedBlob = await processImageFile(file);
+  
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error('Cloudinary credentials missing in Environment Variables');
   }
 
-  // Process image (compress, resize, strip EXIF)
+  const formData = new FormData();
+  formData.append('file', processedBlob, file.name);
+  formData.append('upload_preset', uploadPreset);
+  formData.append('folder', `rebo-salon/reference-images/${userId}/${appointmentId}`);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (data.secure_url) {
+    return data.secure_url;
+  } else {
+    throw new Error(data.error?.message || 'Cloudinary upload failed');
+  }
+}
+
+/**
+ * Uploads a site asset (Hero, About, Gallery) to Cloudinary
+ */
+export async function uploadSiteAsset(
+  file: File,
+  folder: string = 'general'
+): Promise<string> {
+  const validation = validateImageFile(file);
+  if (!validation.valid) throw new Error(validation.error || 'Invalid file');
+
   const processedBlob = await processImageFile(file);
 
-  // Create storage reference
-  const storage = getStorage(app);
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-  const storagePath = `reference-images/${userId}/${appointmentId}/${fileName}`;
-  const storageRef = ref(storage, storagePath);
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-  // Upload with metadata
-  const metadata = {
-    contentType: 'image/jpeg',
-    cacheControl: 'public,max-age=31536000,immutable',
-    customMetadata: {
-      uploadedBy: userId,
-      appointmentId,
-      originalName: file.name,
-      originalType: file.type,
-      uploadedAt: new Date().toISOString(),
-    },
-  };
+  if (!cloudName || !uploadPreset) {
+    throw new Error('Cloudinary credentials missing in Environment Variables');
+  }
 
-  await uploadBytes(storageRef, processedBlob, metadata);
+  const formData = new FormData();
+  formData.append('file', processedBlob, file.name);
+  formData.append('upload_preset', uploadPreset);
+  formData.append('folder', `rebo-salon/site-assets/${folder}`);
 
-  // Get download URL
-  const downloadURL = await getDownloadURL(storageRef);
-  return downloadURL;
-}
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: 'POST',
+    body: formData,
+  });
 
-/**
- * Deletes a reference image from Firebase Storage
- */
-export async function deleteReferenceImage(downloadURL: string): Promise<void> {
-  try {
-    const storage = getStorage(app);
-    const storageRef = ref(storage, downloadURL);
-    await deleteObject(storageRef);
-  } catch (error) {
-    // Ignore if file doesn't exist
-    console.warn('Failed to delete reference image:', error);
+  const data = await res.json();
+  if (data.secure_url) {
+    return data.secure_url;
+  } else {
+    throw new Error(data.error?.message || 'Cloudinary upload failed');
   }
 }
 
 /**
- * Generates a signed upload URL for direct client uploads (alternative approach)
- * Use this for larger files or to avoid loading image in memory
+ * Unsigned client-side uploads cannot be deleted for security reasons.
+ * You can manage/delete assets directly inside your Cloudinary Dashboard.
  */
-export async function getSignedUploadUrl(
-  userId: string,
-  appointmentId: string,
-  contentType: string
-): Promise<{ uploadUrl: string; downloadUrl: string; fileName: string }> {
-  // This would require a Cloud Function to generate signed URLs
-  // For now, we use direct upload via the client SDK
-  throw new Error('Signed URLs not implemented - use uploadReferenceImage directly');
+export async function deleteReferenceImage(downloadURL: string): Promise<void> {
+  console.warn('Delete action disabled: Client-side deletion is not supported for unsigned Cloudinary uploads.');
+}
+
+export async function getSignedUploadUrl(): Promise<any> {
+  throw new Error('Signed URLs not implemented - using unsigned Cloudinary uploads instead.');
 }

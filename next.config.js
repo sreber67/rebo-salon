@@ -15,8 +15,8 @@ const nextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com https://connect.facebook.net",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "img-src 'self' data: https: blob: https://images.unsplash.com https://firebasestorage.googleapis.com",
-              "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.mymemory.translated.net https://api-free.deepl.com https://api.deepl.com https://www.google-analytics.com https://region1.google-analytics.com wss://*.firebaseio.com",
+              "img-src 'self' data: https: blob: https://images.unsplash.com https://firebasestorage.googleapis.com https://res.cloudinary.com",
+              "connect-src 'self' https://api.cloudinary.com https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.mymemory.translated.net https://api-free.deepl.com https://api.deepl.com https://www.google-analytics.com https://region1.google-analytics.com wss://*.firebaseio.com",
               // CRITICAL FIX FOR FIREBASE AUTH:
              "frame-src 'self' https://accounts.google.com https://www.facebook.com https://rebo-salon.firebaseapp.com https://maps.google.com https://www.google.com",
               "frame-ancestors 'none'",
@@ -119,6 +119,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'platform-lookaside.fbsbx.com', // Facebook profile images
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com', // Cloudinary images
       },
     ],
     formats: ['image/avif', 'image/webp'],

@@ -1,9 +1,9 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { auth, db, getGoogleProvider, getFacebookProvider } from '../lib/firebase';
 import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, verifyBeforeUpdateEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { uploadReferenceImage } from '@/lib/storage';
+import { uploadReferenceImage, uploadSiteAsset } from '@/lib/storage';
 import { CookieConsentProvider, CookieConsentBanner, useCookieConsent } from '@/components/CookieConsent';
 import { DataExportButton, DataExportModal } from '@/components/DataExport';
 import { DeleteAccountButton, AccountDeletionModal } from '@/components/AccountDeletion';
@@ -126,8 +126,8 @@ function ToastContainer() {
   const { notifications } = useApp();
   return (
     <div className="fixed top-20 md:top-24 right-4 md:right-6 z-999 flex flex-col gap-2 pointer-events-none">
-      {notifications.map(n => (
-        <div key={n.id} className={`p-4 rounded shadow-2xl animate-in slide-in-from-right-8 duration-300 pointer-events-auto border-l-4 text-xs md:text-sm ${n.type === 'success' ? 'bg-[#111] border-green-500 text-green-400' : n.type === 'error' ? 'bg-[#111] border-red-500 text-red-400' : 'bg-[#111] border-[#d4af37] text-[#d4af37]'}`}>
+      {notifications.map((n, idx) => (
+        <div key={`${n.id}-${idx}`} className={`p-4 rounded shadow-2xl animate-in slide-in-from-right-8 duration-300 pointer-events-auto border-l-4 text-xs md:text-sm ${n.type === 'success' ? 'bg-[#111] border-green-500 text-green-400' : n.type === 'error' ? 'bg-[#111] border-red-500 text-red-400' : 'bg-[#111] border-[#d4af37] text-[#d4af37]'}`}>
           <p className="font-semibold">{n.message}</p>
         </div>
       ))}
@@ -514,7 +514,7 @@ function ProfileViewLocal() {
             <div>
               <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">{t.profile?.contactData || "Kontaktdaten"}</p>
               <p className="text-lg font-bold">{currentUser.email}</p>
-              <p className="text-gray-300 mt-1">{currentUser.phone || t.profile?.noPhone || "Keine Telefonnummer gespeichert. Bitte in den Einstellungen hinzufügen."}</p>
+              <p className="text-gray-300 mt-1">{currentUser.phone || t.profile?.noPhone || "Keine Telefonnummer gespeichert. Bitte in settings hinzufügen."}</p>
             </div>
             <button onClick={() => setActiveTab('settings')} className="p-3 border border-white/20 rounded-sm hover:bg-white/5 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -584,8 +584,8 @@ function ProfileViewLocal() {
 }
 
 function AdminView() {
-  const { appointments, updateAppointmentStatus, servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock, t, usersDB, updateUserNotes, addAdminAppointment, waitlist, notifyWaitlist, removeFromWaitlist, resendConfirmation, stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings } = useApp();
-  const [tab, setTab] = useState<'appointments' | 'calendar' | 'services' | 'products' | 'clients' | 'waitlist' | 'team' | 'settings'>('appointments');
+  const { appointments, updateAppointmentStatus, servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock, t, usersDB, updateUserNotes, addAdminAppointment, waitlist, notifyWaitlist, removeFromWaitlist, resendConfirmation, stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings, addNotification } = useApp();
+  const [tab, setTab] = useState<'appointments' | 'calendar' | 'services' | 'products' | 'clients' | 'waitlist' | 'team' | 'settings' | 'gallery'>('appointments');
   const [editingNotes, setEditingNotes] = useState<{[key:string]: string}>({});
   const [editingClientNotes, setEditingClientNotes] = useState<{[key:string]: string}>({});
   const [searchClient, setSearchClient] = useState('');
@@ -617,7 +617,6 @@ function AdminView() {
 
   const [stylistName, setStylistName] = useState('');
   const [stylistServices, setStylistServices] = useState<string[]>([]);
-  const [walkinWaitTimeInput, setWalkinWaitTimeInput] = useState('');
   const [holidayInput, setHolidayInput] = useState('');
   
   const [heroImageInput, setHeroImageInput] = useState('');
@@ -627,15 +626,82 @@ function AdminView() {
   const [aboutTitleEnInput, setAboutTitleEnInput] = useState('');
   const [aboutTextEnInput, setAboutTextEnInput] = useState('');
 
+  // Upload States
+  const [isUploadingHero, setIsUploadingHero] = useState(false);
+  const [isUploadingAbout, setIsUploadingAbout] = useState(false);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+  const [galleryImagesInput, setGalleryImagesInput] = useState<string[]>([]);
+
   useEffect(() => {
-     setWalkinWaitTimeInput(generalSettings?.walkinWaitTime || '');
      setHeroImageInput(generalSettings?.heroImage || '');
      setAboutImageInput(generalSettings?.aboutImage || '');
      setAboutTitleDeInput(generalSettings?.aboutTitleDe || '');
      setAboutTextDeInput(generalSettings?.aboutTextDe || '');
      setAboutTitleEnInput(generalSettings?.aboutTitleEn || '');
      setAboutTextEnInput(generalSettings?.aboutTextEn || '');
+     setGalleryImagesInput(generalSettings?.galleryImages || []);
   }, [generalSettings]);
+
+  const handleSiteAssetUpload = async (file: File | undefined, type: 'hero' | 'about') => {
+    if (!file) return;
+    if (type === 'hero') setIsUploadingHero(true);
+    else setIsUploadingAbout(true);
+    try {
+      const url = await uploadSiteAsset(file, type);
+      if (type === 'hero') setHeroImageInput(url);
+      else setAboutImageInput(url);
+      addNotification("Bild erfolgreich hochgeladen!", "success");
+    } catch (error: any) {
+      addNotification(error.message || "Fehler beim Upload", "error");
+    } finally {
+      if (type === 'hero') setIsUploadingHero(false);
+      else setIsUploadingAbout(false);
+    }
+  };
+
+  const handleGalleryUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsUploadingGallery(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of Array.from(files)) {
+        const url = await uploadSiteAsset(file, 'gallery');
+        uploadedUrls.push(url);
+      }
+      const newImages = [...galleryImagesInput, ...uploadedUrls];
+      setGalleryImagesInput(newImages);
+      await updateGeneralSettings({ galleryImages: newImages });
+      addNotification(uploadedUrls.length > 1 ? `${uploadedUrls.length} Galerie-Bilder hochgeladen!` : "Galerie-Bild hochgeladen!", "success");
+    } catch (error: any) {
+      addNotification(error.message || "Fehler beim Upload", "error");
+    } finally {
+      setIsUploadingGallery(false);
+    }
+  };
+
+  const handleReplaceGalleryImage = async (index: number, file: File | undefined) => {
+    if (!file) return;
+    setIsUploadingGallery(true);
+    try {
+      const url = await uploadSiteAsset(file, 'gallery');
+      const newImages = [...galleryImagesInput];
+      newImages[index] = url;
+      setGalleryImagesInput(newImages);
+      await updateGeneralSettings({ galleryImages: newImages });
+      addNotification("Bild erfolgreich ersetzt!", "success");
+    } catch (error: any) {
+      addNotification(error.message || "Fehler beim Upload", "error");
+    } finally {
+      setIsUploadingGallery(false);
+    }
+  };
+
+  const removeGalleryImage = async (urlToRemove: string) => {
+    const newImages = galleryImagesInput.filter(url => url !== urlToRemove);
+    setGalleryImagesInput(newImages);
+    await updateGeneralSettings({ galleryImages: newImages });
+    addNotification("Bild entfernt!", "info");
+  };
 
   const primaryColor = 'text-[#d4af37]';
   const bgBorder = 'border-white/10 bg-[#111]';
@@ -799,6 +865,7 @@ function AdminView() {
           { id: 'services', label: t.admin?.tabs?.services || 'Leistungen' },
           { id: 'products', label: t.admin?.tabs?.products || 'Produkte' },
           { id: 'team', label: t.admin?.tabs?.team || 'Team' },
+          { id: 'gallery', label: t.nav?.gallery || 'Galerie' },
           { id: 'settings', label: t.admin?.tabs?.settings || 'Einstellungen' }
         ].map((tb) => (
           <button key={tb.id} onClick={() => setTab(tb.id as any)} className={`px-5 py-3 uppercase tracking-widest text-[10px] md:text-xs font-bold rounded-sm transition-colors whitespace-nowrap ${tab === tb.id ? 'bg-[#d4af37] text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
@@ -806,6 +873,40 @@ function AdminView() {
           </button>
         ))}
       </div>
+
+      {tab === 'gallery' && (
+        <div className={`p-6 border rounded-sm ${bgBorder}`}>
+          <h3 className="text-lg font-bold mb-6">{t.nav?.gallery || 'Galerie'}</h3>
+          
+          <div className="mb-8">
+             <label className="block text-xs uppercase text-gray-400 mb-2">Neue Bilder hinzufügen (Mehrfachauswahl möglich)</label>
+             <div className="flex items-center gap-4 bg-black border border-white/20 p-2 rounded-sm max-w-md">
+                <input type="file" accept="image/*" multiple disabled={isUploadingGallery} onChange={e => { handleGalleryUpload(e.target.files); e.target.value = ''; }} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:cursor-pointer disabled:opacity-50" />
+                {isUploadingGallery && <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span>}
+             </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+             {galleryImagesInput.map((img, idx) => (
+                <div key={idx} className="relative group aspect-square rounded-sm overflow-hidden border border-white/10">
+                   <img src={img} className="w-full h-full object-cover grayscale-20 group-hover:grayscale-0 transition-all" alt="Gallery" />
+                   
+                   {/* Hover Action Menu for Replace & Delete */}
+                   <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+                      <label className="bg-white/20 hover:bg-white/40 text-white text-[10px] uppercase font-bold px-4 py-2 rounded-sm cursor-pointer transition-colors text-center w-24">
+                        Ersetzen
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleReplaceGalleryImage(idx, e.target.files?.[0])} />
+                      </label>
+                      <button onClick={() => removeGalleryImage(img)} className="bg-red-600/80 hover:bg-red-600 text-white text-[10px] uppercase font-bold px-4 py-2 rounded-sm transition-colors w-24">
+                        Löschen
+                      </button>
+                   </div>
+                </div>
+             ))}
+             {galleryImagesInput.length === 0 && <p className="text-sm text-gray-500 col-span-full">Keine Bilder in der Galerie. Lade Bilder hoch, um die Standardbilder zu ersetzen.</p>}
+          </div>
+        </div>
+      )}
 
       {tab === 'team' && (
           <div className="grid lg:grid-cols-2 gap-8">
@@ -851,14 +952,6 @@ function AdminView() {
           <div className="grid lg:grid-cols-2 gap-8">
             <div className={`p-6 border rounded-sm ${bgBorder}`}>
               <h3 className="text-lg font-bold mb-4">{t.admin?.settings?.title || 'Allgemeine Einstellungen'}</h3>
-              
-              <div className="mb-8">
-                <label className="block text-xs uppercase text-gray-400 mb-2">{t.admin?.settings?.walkin || 'Live-Wartezeit für Walk-ins'}</label>
-                <div className="flex gap-2">
-                  <input value={walkinWaitTimeInput} onChange={e=>setWalkinWaitTimeInput(e.target.value)} type="text" placeholder={t.admin?.settings?.walkinPlaceholder || 'z.B. ca. 30 Minuten, Ausgebucht...'} className="flex-1 bg-black border border-white/20 p-3 rounded-sm text-white text-sm" />
-                  <button onClick={() => updateGeneralSettings({ walkinWaitTime: walkinWaitTimeInput })} className="px-6 py-3 font-bold uppercase text-xs rounded-sm bg-[#d4af37] text-black hover:bg-white transition-colors">{t.admin?.settings?.saveWalkin || 'Update'}</button>
-                </div>
-              </div>
 
               <div>
                  <h4 className="text-md font-bold mb-3 text-red-400">{t.admin?.settings?.holidays || 'Geschlossene Tage (Urlaub / Feiertage)'}</h4>
@@ -887,12 +980,18 @@ function AdminView() {
                   <h4 className="text-md font-bold mb-4 text-[#d4af37]">{t.admin?.settings?.designTitle || 'Homepage Design & Texte'}</h4>
                   <div className="space-y-4">
                       <div>
-                          <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.heroImg || 'Hero Hintergrundbild (URL)'}</label>
-                          <input value={heroImageInput} onChange={e=>setHeroImageInput(e.target.value)} type="text" className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-sm" />
+                          <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.heroImg || 'Hero Hintergrundbild'}</label>
+                          <div className="flex items-center gap-4 bg-black border border-white/20 p-2 rounded-sm">
+                              <input type="file" accept="image/*" disabled={isUploadingHero} onChange={e => handleSiteAssetUpload(e.target.files?.[0], 'hero')} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:cursor-pointer disabled:opacity-50" />
+                              {isUploadingHero ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span> : heroImageInput && <img src={heroImageInput} alt="Hero Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
+                          </div>
                       </div>
                       <div>
-                          <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.aboutImg || 'Profilbild (URL)'}</label>
-                          <input value={aboutImageInput} onChange={e=>setAboutImageInput(e.target.value)} type="text" className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-sm" />
+                          <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.aboutImg || 'Profilbild'}</label>
+                          <div className="flex items-center gap-4 bg-black border border-white/20 p-2 rounded-sm">
+                              <input type="file" accept="image/*" disabled={isUploadingAbout} onChange={e => handleSiteAssetUpload(e.target.files?.[0], 'about')} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:cursor-pointer disabled:opacity-50" />
+                              {isUploadingAbout ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span> : aboutImageInput && <img src={aboutImageInput} alt="About Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
+                          </div>
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">
                           <div>
@@ -906,12 +1005,12 @@ function AdminView() {
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">
                           <div>
-                              <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.aboutTextDe || 'Beschreibung (Deutsch - max. 400 Zeichen)'}</label>
-                              <textarea maxLength={400} value={aboutTextDeInput} onChange={e=>setAboutTextDeInput(e.target.value)} rows={4} className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-sm" />
+                              <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.aboutTextDe || 'Beschreibung (Deutsch)'}</label>
+                              <textarea value={aboutTextDeInput} onChange={e=>setAboutTextDeInput(e.target.value)} rows={8} className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-sm whitespace-pre-wrap" />
                           </div>
                           <div>
-                              <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.aboutTextEn || 'Beschreibung (Englisch - max. 400 Zeichen)'}</label>
-                              <textarea maxLength={400} value={aboutTextEnInput} onChange={e=>setAboutTextEnInput(e.target.value)} rows={4} className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-sm" />
+                              <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.aboutTextEn || 'Beschreibung (Englisch)'}</label>
+                              <textarea value={aboutTextEnInput} onChange={e=>setAboutTextEnInput(e.target.value)} rows={8} className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-sm whitespace-pre-wrap" />
                           </div>
                       </div>
                       <button type="button" onClick={handleSaveDesign} className="w-full px-6 py-4 font-bold uppercase text-xs rounded-sm bg-white/10 text-white hover:bg-white hover:text-black transition-colors">{t.admin?.settings?.saveDesign || 'Design speichern'}</button>
@@ -1345,8 +1444,8 @@ function BookingView() {
       addNotification('Nur JPEG, PNG, WEBP, HEIC/HEIF Dateien erlaubt', 'error');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      addNotification('Datei zu groß. Maximum 5MB', 'error');
+    if (file.size > 20 * 1024 * 1024) {
+      addNotification('Datei zu groß. Maximum 20MB', 'error');
       return;
     }
     
@@ -1696,6 +1795,108 @@ function ContactView() {
 }
 
 // --- MAIN WRAPPER ---
+function GalleryView({ images, title }: { images: string[]; title: string }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const showPrev = useCallback(() => {
+    setOpenIndex((i) => (i === null ? null : (i - 1 + images.length) % images.length));
+  }, [images.length]);
+  const showNext = useCallback(() => {
+    setOpenIndex((i) => (i === null ? null : (i + 1) % images.length));
+  }, [images.length]);
+
+  useEffect(() => {
+    if (openIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenIndex(null);
+      if (e.key === 'ArrowLeft') showPrev();
+      if (e.key === 'ArrowRight') showNext();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openIndex, showPrev, showNext]);
+
+  return (
+    <div className="animate-in fade-in duration-700 w-full pt-28 pb-20 px-4 md:px-6 max-w-7xl mx-auto">
+      <div className="text-center mb-12 pb-8">
+        <h2 className="text-3xl md:text-5xl font-bold mb-2 uppercase tracking-tight">{title}</h2>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        {images.map((src, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => setOpenIndex(idx)}
+            className="relative aspect-3/4 overflow-hidden rounded-sm group animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both focus:outline-hidden focus-visible:ring-2 focus-visible:ring-[#d4af37] cursor-zoom-in"
+            style={{ animationDelay: `${idx * 80}ms` }}
+            aria-label={`Bild ${idx + 1} von ${images.length} öffnen`}
+          >
+            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-500 z-10" />
+            <img
+              src={src}
+              alt={`Rebo Salon Galerie Bild ${idx + 1}`}
+              loading="lazy"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale-20 group-hover:grayscale-0"
+            />
+          </button>
+        ))}
+        {images.length === 0 && (
+          <p className="col-span-full text-center text-gray-500 text-sm py-12">Noch keine Bilder in der Galerie.</p>
+        )}
+      </div>
+
+      {openIndex !== null && (
+        <div
+          className="fixed inset-0 z-100 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
+          onClick={() => setOpenIndex(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <button
+            onClick={() => setOpenIndex(null)}
+            className="absolute top-4 right-4 md:top-8 md:right-8 text-white/70 hover:text-white text-3xl w-11 h-11 flex items-center justify-center transition-colors z-10"
+            aria-label="Schließen"
+          >
+            ✕
+          </button>
+
+          <span className="absolute top-4 left-4 md:top-8 md:left-8 text-white/60 text-xs md:text-sm uppercase tracking-widest z-10">
+            {openIndex + 1} / {images.length}
+          </span>
+
+          {images.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); showPrev(); }}
+              className="absolute left-1 md:left-6 top-1/2 -translate-y-1/2 text-white/70 hover:text-[#d4af37] w-12 h-12 md:w-14 md:h-14 flex items-center justify-center text-4xl md:text-5xl transition-colors z-10"
+              aria-label="Vorheriges Bild"
+            >
+              ‹
+            </button>
+          )}
+
+          <img
+            src={images[openIndex]}
+            alt={`Rebo Salon Galerie Bild ${openIndex + 1}`}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] max-w-[90vw] w-auto h-auto object-contain rounded-sm shadow-2xl animate-in zoom-in-95 duration-300"
+          />
+
+          {images.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); showNext(); }}
+              className="absolute right-1 md:right-6 top-1/2 -translate-y-1/2 text-white/70 hover:text-[#d4af37] w-12 h-12 md:w-14 md:h-14 flex items-center justify-center text-4xl md:text-5xl transition-colors z-10"
+              aria-label="Nächstes Bild"
+            >
+              ›
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MainContent() {
   const { page, setPage, t, servicesDB, productsDB, currentUser, generalSettings, lang } = useApp();
 
@@ -1738,9 +1939,17 @@ function MainContent() {
                 <span className="text-[#d4af37] text-xs md:text-sm font-bold tracking-[0.3em] uppercase mb-4 block">Est. Schweinfurt</span>
                 <h1 className="text-4xl sm:text-6xl md:text-8xl font-extrabold tracking-tighter mb-6 leading-tight uppercase">{t.hero.title}</h1>
                 <p className="text-base md:text-2xl text-gray-300 font-light mb-4 max-w-2xl mx-auto">{t.hero.sub}</p>
-                <p className="text-[#d4af37] text-xs md:text-sm font-bold tracking-widest uppercase mb-8 max-w-2xl mx-auto">
-                  {t.hero.walkin} {generalSettings?.walkinWaitTime || "ca. 30 Minuten"}{t.hero.walkinSuffix}
-                </p>
+                <div className="mb-8 max-w-xl mx-auto px-2">
+                  <p className="text-2xl sm:text-3xl md:text-5xl font-extrabold uppercase tracking-tight leading-none text-[#d4af37] mb-3">
+                    {t.hero.walkin}
+                  </p>
+                  <p className="relative inline-block italic font-light text-gray-100 text-sm sm:text-base md:text-xl">
+                    {t.hero.walkinTagline}
+                    <svg className="absolute left-0 -bottom-2 w-full h-2.5" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true">
+                      <path d="M2,7 C50,2 150,11 198,5" stroke="#d4af37" strokeWidth="2" fill="none" strokeLinecap="round" />
+                    </svg>
+                  </p>
+                </div>
                 <button onClick={() => setPage('booking')} className="bg-[#d4af37] text-black px-8 md:px-10 py-3.5 md:py-4 font-bold uppercase tracking-widest text-xs md:text-sm hover:bg-white transition-all shadow-[0_0_30px_rgba(212,175,55,0.2)]">{t.nav.book}</button>
               </div>
             </section>
@@ -1752,7 +1961,7 @@ function MainContent() {
                 </h2>
                 <div className="w-12 h-1 bg-[#d4af37] mb-8" />
                 
-                <p className="text-gray-400 text-sm md:text-base lg:text-lg leading-relaxed font-light line-clamp-none md:line-clamp-[10]">
+                <p className="text-gray-100 text-sm md:text-base lg:text-lg leading-relaxed font-semibold whitespace-pre-line">
                   {lang === 'de' ? (generalSettings?.aboutTextDe || t.about.text) : (generalSettings?.aboutTextEn || t.about.text)}
                 </p>
               </div>
@@ -1761,7 +1970,7 @@ function MainContent() {
                 <div className="absolute inset-0 border-2 border-[#d4af37] translate-x-4 translate-y-4 rounded-sm" />
                 <img 
                   src={generalSettings?.aboutImage || "image_0200bf.jpg"} 
-                  className="relative z-10 w-full h-auto rounded-sm object-cover aspect-[3/4] grayscale-20" 
+                  className="relative z-10 w-full h-auto rounded-sm object-cover aspect-3/4 grayscale-20" 
                   alt="Salon About Image" 
                 />
               </div>
@@ -1797,26 +2006,12 @@ function MainContent() {
         )}
 
         {page === 'gallery' && (
-          <div className="animate-in fade-in duration-700 w-full pt-28 pb-20 px-4 md:px-6 max-w-7xl mx-auto">
-            <div className="text-center mb-12 pb-8">
-               <h2 className="text-3xl md:text-5xl font-bold mb-2 uppercase tracking-tight">{t.gallery.title}</h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-[75px] md:auto-rows-[150px]">
-              {t.gallery.images.map((src: string, idx: number) => {
-                let spanClass = "col-span-1 row-span-1";
-                let desktopSpan = "md:col-span-1 md:row-span-1";
-                if (idx === 0) desktopSpan = "md:col-span-2 md:row-span-2"; 
-                if (idx === 1) desktopSpan = "md:col-span-2 md:row-span-1"; 
-                
-                return (
-                  <div key={idx} className={`relative overflow-hidden rounded-sm group animate-in fade-in slide-in-from-bottom-12 duration-700 fill-mode-both ${spanClass} ${desktopSpan}`} style={{ animationDelay: `${idx * 150}ms` }}>
-                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500 z-10" />
-                    <img src={src} alt={`Gallery Image ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale-20 group-hover:grayscale-0" />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <GalleryView
+            title={t.gallery.title}
+            images={(generalSettings?.galleryImages && generalSettings.galleryImages.length > 0)
+              ? generalSettings.galleryImages
+              : t.gallery.images}
+          />
         )}
 
         {page === 'products' && (
@@ -1828,7 +2023,7 @@ function MainContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
               {productsDB.map((item: ProductItem, idx: number) => (
                 <div key={item.id} className="rounded-sm flex flex-col justify-between h-full overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-12 duration-700 fill-mode-both bg-[#111] border border-white/10" style={{ animationDelay: `${idx * 150}ms` }}>
-                  <div className="w-full aspect-square md:aspect-[4/5] overflow-hidden bg-black/50 relative group">
+                  <div className="w-full aspect-square md:aspect-4/5 overflow-hidden bg-black/50 relative group">
                     <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   </div>
                   <div className="p-6 md:p-8 flex flex-col grow relative">
