@@ -617,6 +617,7 @@ function AdminView() {
 
   const [stylistName, setStylistName] = useState('');
   const [stylistServices, setStylistServices] = useState<string[]>([]);
+  const [walkinWaitTimeInput, setWalkinWaitTimeInput] = useState('');
   const [holidayInput, setHolidayInput] = useState('');
   
   const [heroImageInput, setHeroImageInput] = useState('');
@@ -633,6 +634,7 @@ function AdminView() {
   const [galleryImagesInput, setGalleryImagesInput] = useState<string[]>([]);
 
   useEffect(() => {
+     setWalkinWaitTimeInput(generalSettings?.walkinWaitTime || '');
      setHeroImageInput(generalSettings?.heroImage || '');
      setAboutImageInput(generalSettings?.aboutImage || '');
      setAboutTitleDeInput(generalSettings?.aboutTitleDe || '');
@@ -796,6 +798,7 @@ function AdminView() {
 
   const handleSaveDesign = () => {
     updateGeneralSettings({
+      walkinWaitTime: walkinWaitTimeInput,
       heroImage: heroImageInput,
       aboutImage: aboutImageInput,
       aboutTitleDe: aboutTitleDeInput,
@@ -952,6 +955,14 @@ function AdminView() {
           <div className="grid lg:grid-cols-2 gap-8">
             <div className={`p-6 border rounded-sm ${bgBorder}`}>
               <h3 className="text-lg font-bold mb-4">{t.admin?.settings?.title || 'Allgemeine Einstellungen'}</h3>
+              
+              <div className="mb-8">
+                <label className="block text-xs uppercase text-gray-400 mb-2">{t.admin?.settings?.walkin || 'Live-Wartezeit für Walk-ins'}</label>
+                <div className="flex gap-2">
+                  <input value={walkinWaitTimeInput} onChange={e=>setWalkinWaitTimeInput(e.target.value)} type="text" placeholder={t.admin?.settings?.walkinPlaceholder || 'z.B. ca. 30 Minuten, Ausgebucht...'} className="flex-1 bg-black border border-white/20 p-3 rounded-sm text-white text-sm" />
+                  <button onClick={() => updateGeneralSettings({ walkinWaitTime: walkinWaitTimeInput })} className="px-6 py-3 font-bold uppercase text-xs rounded-sm bg-[#d4af37] text-black hover:bg-white transition-colors">{t.admin?.settings?.saveWalkin || 'Update'}</button>
+                </div>
+              </div>
 
               <div>
                  <h4 className="text-md font-bold mb-3 text-red-400">{t.admin?.settings?.holidays || 'Geschlossene Tage (Urlaub / Feiertage)'}</h4>
@@ -1925,56 +1936,90 @@ function MainContent() {
         
         {page === 'home' && (
           <div className="animate-in fade-in duration-700 pb-20 pt-20">
-            <section className="relative min-h-[75vh] md:min-h-[85vh] flex items-center justify-center pt-28 px-4 overflow-hidden">
+            {/* HERO SECTION - REFINED TYPOGRAPHY, BUTTONS UP, STARS INTEGRATED */}
+            <section className="relative min-h-[85vh] flex items-center justify-center pt-28 pb-12 px-4 overflow-hidden">
               <div className="absolute inset-0 z-0">
-                <div className="absolute inset-0 bg-[#0a0a0a]/70 z-10" />
+                <div className="absolute inset-0 bg-black/65 z-10" />
                 <div className="absolute inset-0 bg-linear-to-t from-[#0a0a0a] via-transparent to-transparent z-10" />
                 <img 
                   src={generalSettings?.heroImage || "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=1600&q=80"} 
-                  className="w-full h-full object-cover grayscale-30" 
+                  className="w-full h-full object-cover grayscale-40" 
                   alt="Salon Background" 
                 />
               </div>
-              <div className="relative z-20 text-center max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                <span className="text-[#d4af37] text-xs md:text-sm font-bold tracking-[0.3em] uppercase mb-4 block">Est. Schweinfurt</span>
-                <h1 className="text-4xl sm:text-6xl md:text-8xl font-extrabold tracking-tighter mb-6 leading-tight uppercase">{t.hero.title}</h1>
-                <p className="text-base md:text-2xl text-gray-300 font-light mb-4 max-w-2xl mx-auto">{t.hero.sub}</p>
-                <div className="mb-8 max-w-xl mx-auto px-2">
-                  <p className="text-2xl sm:text-3xl md:text-5xl font-extrabold uppercase tracking-tight leading-none text-[#d4af37] mb-3">
-                    {t.hero.walkin}
-                  </p>
-                  <p className="relative inline-block italic font-light text-gray-100 text-sm sm:text-base md:text-xl">
-                    {t.hero.walkinTagline}
-                    <svg className="absolute left-0 -bottom-2 w-full h-2.5" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true">
-                      <path d="M2,7 C50,2 150,11 198,5" stroke="#d4af37" strokeWidth="2" fill="none" strokeLinecap="round" />
-                    </svg>
-                  </p>
+              <div className="relative z-20 text-center max-w-5xl mx-auto flex flex-col justify-center h-full animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                
+                <div className="mb-4">
+                  <span className="inline-block py-1.5 px-4 border border-[#d4af37]/40 rounded-full text-[#d4af37] text-[10px] md:text-xs font-bold tracking-[0.25em] uppercase bg-black/40 backdrop-blur-md shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                    Est. Schweinfurt
+                  </span>
                 </div>
-                <button onClick={() => setPage('booking')} className="bg-[#d4af37] text-black px-8 md:px-10 py-3.5 md:py-4 font-bold uppercase tracking-widest text-xs md:text-sm hover:bg-white transition-all shadow-[0_0_30px_rgba(212,175,55,0.2)]">{t.nav.book}</button>
+                
+                {/* Main Title - Pure White */}
+                <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter mb-2 leading-tight text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
+                  {t.hero.title}
+                </h1>
+
+                {/* Subtitle - Elegant Gold Gradient */}
+                <h2 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-semibold tracking-widest mb-6 uppercase bg-linear-to-r from-[#bf953f] via-[#fcf6ba] to-[#b38728] text-transparent bg-clip-text drop-shadow-lg">
+                  {t.hero.headlineSub || "Dein Barbershop & Herrenfriseur in Schweinfurt"}
+                </h2>
+                
+                {/* Body Text - Soft Silver/Gray */}
+                <p className="text-sm md:text-lg lg:text-xl text-[#e8e6e3]/80 font-light mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-xl whitespace-pre-line">
+                  {t.hero.sub}
+                </p>
+                
+                {/* THE 3 CTA BUTTONS - MOVED UP */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+                  <button onClick={() => setPage('booking')} className="w-full sm:w-auto bg-[#d4af37] text-black px-8 py-3.5 font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-[#ebd58b] transition-all shadow-[0_4px_15px_rgba(212,175,55,0.3)]">
+                    {t.hero.btnWalkin || 'Jetzt vorbeikommen'}
+                  </button>
+                  <a href="https://maps.google.com/?q=REBO+SALON,Manggasse+6,97421+Schweinfurt" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto border border-white/40 text-[#e8e6e3] px-8 py-3.5 font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-white/10 hover:border-white transition-all text-center bg-black/20 backdrop-blur-sm">
+                    {t.hero.btnRoute || 'Route anzeigen'}
+                  </a>
+                  <a href="tel:+4917642980985" className="w-full sm:w-auto border border-[#d4af37]/50 text-[#d4af37] px-8 py-3.5 font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-[#d4af37]/10 hover:border-[#d4af37] transition-all text-center bg-black/20 backdrop-blur-sm">
+                    {t.hero.btnCall || 'Anrufen'}
+                  </a>
+                </div>
+
+                {/* REVIEWS INTEGRATED INTO HERO */}
+                <div className="flex flex-col items-center justify-center pt-8 border-t border-white/10 max-w-2xl mx-auto">
+                   <div className="flex justify-center mb-2 gap-1">
+                     {[1,2,3,4,5].map(star => <span key={star} className="text-[#d4af37] text-xl md:text-2xl drop-shadow-md">★</span>)}
+                   </div>
+                   <p className="text-white text-sm md:text-base font-medium tracking-wide mb-1.5">{t.reviews?.title || 'Kundenbewertungen'}</p>
+                   <a href="https://www.google.com/maps/search/?api=1&query=REBO+SALON+Manggasse+6+Schweinfurt" target="_blank" rel="noopener noreferrer" className="text-gray-400 text-xs md:text-sm hover:text-white transition-colors underline decoration-white/30 underline-offset-4 font-light">
+                      {t.reviews?.subtitle || 'Basierend auf echten Google Rezensionen'} &mdash; <span className="font-bold text-[#d4af37]">{t.reviews?.btn || 'Ansehen'}</span>
+                   </a>
+                </div>
+
               </div>
             </section>
             
-            <section className="px-4 md:px-6 max-w-6xl mx-auto py-16 md:py-24 flex flex-col md:flex-row gap-12 md:gap-20 items-center">
-              <div className="flex-1 md:pr-8">
-                <h2 className="text-2xl md:text-4xl font-bold uppercase tracking-wider mb-4">
+            {/* ABOUT SECTION */}
+            <section className="px-4 md:px-6 max-w-5xl mx-auto py-12 md:py-16 flex flex-col md:flex-row gap-8 md:gap-12 items-center">
+              <div className="flex-1 md:pr-4">
+                <h2 className="text-xl md:text-3xl font-bold uppercase tracking-wider mb-3 text-white">
                   {lang === 'de' ? (generalSettings?.aboutTitleDe || t.about.title) : (generalSettings?.aboutTitleEn || t.about.title)}
                 </h2>
-                <div className="w-12 h-1 bg-[#d4af37] mb-8" />
+                <div className="w-10 h-1 bg-[#d4af37] mb-6" />
                 
-                <p className="text-gray-100 text-sm md:text-base lg:text-lg leading-relaxed font-semibold whitespace-pre-line">
+                <p className="text-[#e8e6e3] text-sm md:text-base leading-relaxed font-medium whitespace-pre-line">
                   {lang === 'de' ? (generalSettings?.aboutTextDe || t.about.text) : (generalSettings?.aboutTextEn || t.about.text)}
                 </p>
               </div>
               
-              <div className="w-full md:w-[40%] relative group max-w-sm mx-auto md:mx-0">
-                <div className="absolute inset-0 border-2 border-[#d4af37] translate-x-4 translate-y-4 rounded-sm" />
+              <div className="w-full md:w-[35%] relative group max-w-70 mx-auto md:mx-0 mt-4 md:mt-0">
+                <div className="absolute inset-0 border-2 border-[#d4af37] translate-x-3 translate-y-3 rounded-sm" />
                 <img 
                   src={generalSettings?.aboutImage || "image_0200bf.jpg"} 
-                  className="relative z-10 w-full h-auto rounded-sm object-cover aspect-3/4 grayscale-20" 
-                  alt="Salon About Image" 
+                  className="relative z-10 w-full h-auto rounded-sm object-cover aspect-3/4 grayscale-20 shadow-2xl" 
+                  alt="Herrenhaarschnitt bei REBO SALON in Schweinfurt" 
                 />
               </div>
             </section>
+
           </div>
         )}
 
