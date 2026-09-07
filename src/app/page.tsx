@@ -1394,7 +1394,17 @@ function AdminView() {
     </div>
   );
 }
-
+// --- MAIN WRAPPER ---
+export default function Page() {
+  return (
+    <CookieConsentProvider>
+      <AppProvider>
+        <CookieConsentBanner />
+        <MainContent />
+      </AppProvider>
+    </CookieConsentProvider>
+  );
+}
 // --- PUBLIC BOOKING VIEW ---
 function BookingView() {
   const { t, currentUser, addAppointment, servicesDB, getAvailableSlots, addNotification, addToWaitlist, stylistsDB } = useApp();
@@ -1487,7 +1497,6 @@ function BookingView() {
     e.preventDefault();
     if (!currentUser || selectedServices.length === 0) return;
     
-    // If it's a normal booking, ensure a slot is selected. If it's a group booking, ensure a preferred time is entered.
     if (guests.length === 0 && !selectedSlot) return;
     if (guests.length > 0 && !preferredTime) {
       addNotification("Bitte Wunschuhrzeit angeben.", "error");
@@ -1625,7 +1634,6 @@ function BookingView() {
                   </div>
               </div>
 
-              {/* Group Booking Guests Expansion */}
               <div className="pt-4 border-t border-gray-800">
                  {guests.map((g, index) => (
                     <div key={g.id} className="p-4 border border-white/10 bg-black/40 rounded-sm space-y-4 relative mb-4 animate-in fade-in">
@@ -1769,22 +1777,15 @@ function ContactView() {
             <div className="pt-4">
                <h3 className="text-xs uppercase text-gray-500 font-bold tracking-widest mb-4">{t.contact.socialLabel}</h3>
                <div className="flex gap-4">
-                 
-                 {/* INSTAGRAM */}
                  <a href="https://www.instagram.com/rebo_salon/" target="_blank" rel="noopener noreferrer" className="w-14 h-14 flex items-center justify-center rounded-full border transition-all border-white/20 text-[#d4af37] hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black">
                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" clipRule="evenodd" /></svg>
                  </a>
-
-                 {/* TIKTOK */}
                  <a href="https://www.tiktok.com/@rebo.salon" target="_blank" rel="noopener noreferrer" className="w-14 h-14 flex items-center justify-center rounded-full border transition-all border-white/20 text-[#d4af37] hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black">
                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/></svg>
                  </a>
-
-                 {/* FACEBOOK */}
                  <a href="https://www.facebook.com/profile.php?id=61572606551232" target="_blank" rel="noopener noreferrer" className="w-14 h-14 flex items-center justify-center rounded-full border transition-all border-white/20 text-[#d4af37] hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black">
                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
                  </a>
-
                </div>
             </div>
           </div>
@@ -1805,7 +1806,6 @@ function ContactView() {
   );
 }
 
-// --- MAIN WRAPPER ---
 function GalleryView({ images, title }: { images: string[]; title: string }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
@@ -1936,55 +1936,116 @@ function MainContent() {
         
         {page === 'home' && (
           <div className="animate-in fade-in duration-700 pb-20 pt-20">
-            {/* HERO SECTION - REFINED TYPOGRAPHY, BUTTONS UP, STARS INTEGRATED */}
+            
+            {/* HERO SECTION */}
             <section className="relative min-h-[85vh] flex items-center justify-center pt-28 pb-12 px-4 overflow-hidden">
+              
               <div className="absolute inset-0 z-0">
                 <div className="absolute inset-0 bg-black/65 z-10" />
                 <div className="absolute inset-0 bg-linear-to-t from-[#0a0a0a] via-transparent to-transparent z-10" />
                 <img 
                   src={generalSettings?.heroImage || "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=1600&q=80"} 
-                  className="w-full h-full object-cover grayscale-[40%]" 
+                  className="w-full h-full object-cover grayscale-40" 
                   alt="Salon Background" 
                 />
               </div>
+
+              {/* MIT & OHNE TERMIN STICKER BADGE */}
+              <div className="absolute top-20 right-4 md:top-28 md:right-10 lg:right-24 z-30 w-32 h-32 md:w-40 md:h-40 flex items-center justify-center animate-in zoom-in duration-1000 delay-300 pointer-events-none">
+                {/* The "Brush" Outer Rings */}
+                <div className="absolute inset-0 rounded-full border-[3px] border-[#eec35b] border-l-transparent rotate-15 scale-105 opacity-80" />
+                <div className="absolute inset-0 rounded-full border-4 border-[#d4af37] border-b-transparent rotate-[-20deg] scale-110 opacity-90" />
+                <div className="absolute inset-0 rounded-full border-2 border-[#f4d068] border-r-transparent rotate-70 scale-100 opacity-60" />
+                {/* Solid Black Base */}
+                <div className="absolute inset-2 rounded-full bg-[#0a0a0a] border-2 border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.4)]" />
+                
+                {/* Text Content */}
+                <div className="relative z-10 flex flex-col items-center rotate-[-10deg] pt-1">
+                  <span className="text-white font-extrabold text-lg md:text-xl leading-none tracking-wide">MIT &</span>
+                  <span className="text-white font-extrabold text-lg md:text-xl leading-none tracking-wide mt-0.5">OHNE</span>
+                  <span className="text-white font-extrabold text-lg md:text-xl leading-none tracking-wide mt-0.5">TERMIN</span>
+                  {/* Small underline swoop */}
+                  <svg className="w-12 h-2 mt-1.5 text-[#eec35b]" viewBox="0 0 100 20" fill="currentColor">
+                    <path d="M0,10 Q50,-5 100,10 Q50,0 0,10 Z" />
+                  </svg>
+                </div>
+              </div>
+              
               <div className="relative z-20 text-center max-w-5xl mx-auto flex flex-col justify-center h-full animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 
-                <div className="mb-4">
+                <div className="mb-4 mt-8 md:mt-0">
                   <span className="inline-block py-1.5 px-4 border border-[#d4af37]/40 rounded-full text-[#d4af37] text-[10px] md:text-xs font-bold tracking-[0.25em] uppercase bg-black/40 backdrop-blur-md shadow-[0_0_15px_rgba(212,175,55,0.1)]">
                     Est. Schweinfurt
                   </span>
                 </div>
                 
-                {/* Main Title - Pure White */}
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter mb-2 leading-tight text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
                   {t.hero.title}
                 </h1>
 
-                {/* Subtitle - Elegant Gold Gradient */}
                 <h2 className="text-base sm:text-lg md:text-2xl font-semibold tracking-widest mb-6 uppercase bg-linear-to-r from-[#bf953f] via-[#fcf6ba] to-[#b38728] text-transparent bg-clip-text drop-shadow-lg">
                   {t.hero.headlineSub || "Dein Barbershop & Herrenfriseur in Schweinfurt"}
                 </h2>
                 
-                {/* Body Text - Soft Silver/Gray */}
                 <p className="text-sm md:text-base text-[#e8e6e3]/80 font-light mb-8 max-w-2xl mx-auto leading-relaxed drop-shadow-xl whitespace-pre-line">
                   {t.hero.sub}
                 </p>
-                
-                {/* THE 3 CTA BUTTONS - MOVED UP */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-                  <button onClick={() => setPage('booking')} className="w-full sm:w-auto bg-[#d4af37] text-black px-6 py-3 font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-[#ebd58b] transition-all shadow-[0_4px_15px_rgba(212,175,55,0.3)]">
-                    {t.hero.btnWalkin || 'Jetzt vorbeikommen'}
-                  </button>
-                  <a href="https://maps.google.com/?q=REBO+SALON,Manggasse+6,97421+Schweinfurt" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto border border-white/40 text-[#e8e6e3] px-6 py-3 font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-white/10 hover:border-white transition-all text-center bg-black/20 backdrop-blur-sm">
-                    {t.hero.btnRoute || 'Route anzeigen'}
-                  </a>
-                  <a href="tel:+4917642980985" className="w-full sm:w-auto border border-[#d4af37]/50 text-[#d4af37] px-6 py-3 font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-[#d4af37]/10 hover:border-[#d4af37] transition-all text-center bg-black/20 backdrop-blur-sm">
-                    {t.hero.btnCall || 'Anrufen'}
-                  </a>
-                </div>
 
+               {/* THE 4 CTA BUTTONS - EXACT MATCH DESIGN */}
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-4 mb-12 max-w-3xl mx-auto w-full px-4">
+                  
+                  {/* BUTTON 1: TERMIN BUCHEN (Clickable) */}
+                  <button onClick={() => setPage('booking')} className="flex items-center justify-between w-full p-4 rounded-2xl bg-linear-to-r from-[#f9d472] via-[#e5b94c] to-[#d4af37] text-black shadow-[0_4px_20px_rgba(212,175,55,0.3)] hover:brightness-110 transition-all group cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <svg className="w-9 h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg>
+                      <div className="text-left flex flex-col">
+                        <span className="font-extrabold text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.book?.title || 'TERMIN BUCHEN'}</span>
+                        <span className="text-sm font-medium opacity-90">{t.hero.btns?.book?.sub || 'Jetzt online Termin vereinbaren'}</span>
+                      </div>
+                    </div>
+                    <svg className="w-7 h-7 stroke-[2.5] mr-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                  </button>
+
+                  {/* INFO BOX 2: OHNE TERMIN VORBEIKOMMEN (Static, NOT a hyperlink) */}
+                  <div className="flex items-center justify-between w-full p-4 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg">
+                    <div className="flex items-center gap-4">
+                      <svg className="w-9 h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg>
+                      <div className="text-left flex flex-col">
+                        <span className="font-extrabold text-[17px] uppercase leading-[1.15] tracking-tight whitespace-pre-wrap">{t.hero.btns?.walkin?.title || 'OHNE TERMIN\nVORBEIKOMMEN'}</span>
+                        <span className="text-sm font-normal text-gray-300 mt-0.5">{t.hero.btns?.walkin?.sub || 'Einfach vorbeischauen'}</span>
+                      </div>
+                    </div>
+                    <svg className="w-7 h-7 stroke-[2.5] text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                  </div>
+
+                  {/* BUTTON 3: ROUTE ANZEIGEN (Hyperlink) */}
+                  <a href="https://maps.google.com/?q=REBO+SALON,Manggasse+6,97421+Schweinfurt" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between w-full p-4 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg hover:bg-white/10 hover:border-white/40 transition-all group cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <svg className="w-9 h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
+                      <div className="text-left flex flex-col">
+                        <span className="font-extrabold text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.route?.title || 'ROUTE ANZEIGEN'}</span>
+                        <span className="text-sm font-normal text-gray-300">{t.hero.btns?.route?.sub || 'So findest du uns'}</span>
+                      </div>
+                    </div>
+                    <svg className="w-7 h-7 stroke-[2.5] text-gray-400 mr-1 group-hover:translate-x-1 group-hover:text-white transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                  </a>
+
+                  {/* BUTTON 4: JETZT ANRUFEN (Hyperlink) */}
+                  <a href="tel:+4917642980985" className="flex items-center justify-between w-full p-4 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg hover:bg-white/10 hover:border-white/40 transition-all group cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <svg className="w-9 h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
+                      <div className="text-left flex flex-col">
+                        <span className="font-extrabold text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.call?.title || 'JETZT ANRUFEN'}</span>
+                        <span className="text-sm font-normal text-gray-300">{t.hero.btns?.call?.sub || 'Wir sind für dich da'}</span>
+                      </div>
+                    </div>
+                    <svg className="w-7 h-7 stroke-[2.5] text-gray-400 mr-1 group-hover:translate-x-1 group-hover:text-white transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                  </a>
+
+                </div>
+                
                 {/* REVIEWS INTEGRATED INTO HERO */}
-                <div className="flex flex-col items-center justify-center pt-8 border-t border-white/10 max-w-2xl mx-auto">
+                <div className="flex flex-col items-center justify-center pt-8 border-t border-white/10 max-w-2xl mx-auto w-full">
                    <div className="flex justify-center mb-2 gap-1">
                      {[1,2,3,4,5].map(star => <span key={star} className="text-[#d4af37] text-xl md:text-2xl drop-shadow-md">★</span>)}
                    </div>
@@ -1998,26 +2059,36 @@ function MainContent() {
             </section>
             
             {/* ABOUT SECTION */}
-            <section className="px-4 md:px-6 max-w-5xl mx-auto py-12 md:py-16 flex flex-col md:flex-row gap-8 md:gap-12 items-center">
+            <section className="px-4 md:px-6 max-w-5xl mx-auto py-16 md:py-24 flex flex-col md:flex-row gap-8 md:gap-16 items-center">
               <div className="flex-1 md:pr-4">
-                <h2 className="text-xl md:text-3xl font-bold uppercase tracking-wider mb-3 text-white">
+                <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider mb-4 text-white">
                   {lang === 'de' ? (generalSettings?.aboutTitleDe || t.about.title) : (generalSettings?.aboutTitleEn || t.about.title)}
                 </h2>
-                <div className="w-10 h-1 bg-[#d4af37] mb-6" />
+                <div className="w-10 h-1 bg-[#d4af37] mb-8" />
                 
-                <p className="text-[#e8e6e3] text-sm md:text-base leading-relaxed font-medium whitespace-pre-line">
+                <p className="text-gray-300 text-sm md:text-base leading-relaxed font-light whitespace-pre-line">
                   {lang === 'de' ? (generalSettings?.aboutTextDe || t.about.text) : (generalSettings?.aboutTextEn || t.about.text)}
                 </p>
               </div>
               
-              <div className="w-full md:w-[35%] relative group max-w-[280px] mx-auto md:mx-0 mt-4 md:mt-0">
-                <div className="absolute inset-0 border-2 border-[#d4af37] translate-x-3 translate-y-3 rounded-sm" />
+              <div className="w-full md:w-[40%] relative group max-w-[320px] mx-auto md:mx-0 mt-8 md:mt-0">
+                <div className="absolute inset-0 border border-[#d4af37]/50 translate-x-3 translate-y-3 rounded-sm" />
                 <img 
                   src={generalSettings?.aboutImage || "image_0200bf.jpg"} 
                   className="relative z-10 w-full h-auto rounded-sm object-cover aspect-[3/4] grayscale-[20%] shadow-2xl" 
                   alt="Herrenhaarschnitt bei REBO SALON in Schweinfurt" 
                 />
               </div>
+            </section>
+
+            {/* WITH OR WITHOUT APPOINTMENT SECTION */}
+            <section className="bg-linear-to-b from-[#0f0f0f] to-[#161616] border-y border-white/5 py-20 px-4 md:px-6 text-center">
+               <div className="max-w-2xl mx-auto">
+                 <h2 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-[#d4af37] mb-6">{t.walkinBlock?.title || 'Mit & ohne Termin'}</h2>
+                 <p className="text-lg md:text-xl text-white font-medium mb-4">{t.walkinBlock?.text1 || 'Du möchtest spontan zum Friseur?'}</p>
+                 <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-2 font-light">{t.walkinBlock?.text2 || 'Bei REBO SALON kannst du mit oder ohne Termin vorbeikommen.'}</p>
+                 <p className="text-gray-400 text-sm md:text-base leading-relaxed font-light">{t.walkinBlock?.text3 || 'Besuche uns einfach während unserer Öffnungszeiten in der Schweinfurter Innenstadt.'}</p>
+               </div>
             </section>
 
           </div>
@@ -2094,16 +2165,5 @@ function MainContent() {
         </footer>
       )}
     </div>
-  );
-}
-
-export default function Page() {
-  return (
-    <CookieConsentProvider>
-      <AppProvider>
-        <CookieConsentBanner />
-        <MainContent />
-      </AppProvider>
-    </CookieConsentProvider>
   );
 }

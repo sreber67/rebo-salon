@@ -91,12 +91,12 @@ export const fallbackTranslations: TranslationData = {
       title: "REBO SALON", 
       headlineSub: "Dein Barbershop & Herrenfriseur in Schweinfurt",
       sub: "Moderner Style. Saubere Arbeit. Dein Look.\n\nWillkommen bei REBO SALON in Schweinfurt.\n\nBei uns erwarten dich moderne und klassische Herrenhaarschnitte, professionelle Bartpflege, Kinderhaarschnitte und präzises Styling – individuell auf deinen Look abgestimmt.", 
-      walkin: "Mit & ohne Termin", 
-      walkinTagline: "Einfach vorbeikommen",
-      walkinSuffix: "",
-      btnWalkin: "Jetzt vorbeikommen",
-      btnRoute: "Route anzeigen",
-      btnCall: "Anrufen"
+      btns: {
+        book: { title: "TERMIN BUCHEN", sub: "Jetzt online Termin vereinbaren" },
+        walkin: { title: "OHNE TERMIN\nVORBEIKOMMEN", sub: "Einfach vorbeischauen" },
+        call: { title: "JETZT ANRUFEN", sub: "Wir sind für dich da" },
+        route: { title: "ROUTE ANZEIGEN", sub: "So findest du uns" }
+      }
     }, 
     walkinBlock: {
       title: "Mit & ohne Termin",
@@ -137,8 +137,12 @@ export const fallbackTranslations: TranslationData = {
       title: "REBO SALON", 
       headlineSub: "Your Barbershop & Men's Hairdresser in Schweinfurt",
       sub: "Modern Style. Clean Work. Your Look.\n\nWelcome to REBO SALON in Schweinfurt.\n\nWe offer modern and classic men's haircuts, professional beard care, children's cuts, and precise styling – individually tailored to your look.", 
-      walkin: "Walk-in possible (Waiting time", 
-      walkinSuffix: ")" 
+      btns: {
+        book: { title: "BOOK APPOINTMENT", sub: "Schedule online now" },
+        walkin: { title: "WALK-IN\nAVAILABLE", sub: "Just drop by" },
+        call: { title: "CALL NOW", sub: "We are here for you" },
+        route: { title: "GET DIRECTIONS", sub: "How to find us" }
+      }
     }, 
     about: { title: "About Me", text: "Behind Rebo Salon is me, your personal barber. With years of experience and a sharp eye for detail, my mission is to give you not just a haircut, but a real upgrade to your self-confidence. Quality, precision, and your style are my top priorities." }, 
     services: { title: "Our Services", subtitle: "Golden Offer Every Tuesday", min: "minutes" }, 
