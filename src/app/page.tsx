@@ -1935,14 +1935,15 @@ function MainContent() {
         {page === 'contact' && <ContactView />}
         
         {page === 'home' && (
-          <div className="animate-in fade-in duration-700 pb-20 pt-20">
+          <div className="animate-in fade-in duration-700 pb-16 pt-16 md:pt-20">
             
-            {/* HERO SECTION */}
-            <section className="relative min-h-[85vh] flex items-center justify-center pt-28 pb-12 px-4 overflow-hidden">
+            {/* HERO SECTION - MOBILE OPTIMIZED & FULLY SCALED */}
+            <section className="relative min-h-[100dvh] h-auto flex flex-col items-center justify-center pt-32 pb-16 px-4 md:px-8 overflow-hidden">
               
+              {/* Background Image */}
               <div className="absolute inset-0 z-0">
                 <div className="absolute inset-0 bg-black/65 z-10" />
-                <div className="absolute inset-0 bg-linear-to-t from-[#0a0a0a] via-transparent to-transparent z-10" />
+                <div className="absolute inset-0 bg-linear-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent z-10" />
                 <img 
                   src={generalSettings?.heroImage || "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=1600&q=80"} 
                   className="w-full h-full object-cover grayscale-40" 
@@ -1950,107 +1951,107 @@ function MainContent() {
                 />
               </div>
 
-              {/* MIT & OHNE TERMIN STICKER BADGE */}
-              <div className="absolute top-20 right-4 md:top-28 md:right-10 lg:right-24 z-30 w-32 h-32 md:w-40 md:h-40 flex items-center justify-center animate-in zoom-in duration-1000 delay-300 pointer-events-none">
+              {/* MIT & OHNE TERMIN STICKER BADGE - RESPONSIVE SCALING */}
+              <div className="absolute top-24 right-2 sm:right-6 md:top-28 md:right-10 lg:right-24 z-30 w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-40 lg:h-40 flex items-center justify-center animate-in zoom-in duration-1000 delay-300 pointer-events-none">
                 {/* The "Brush" Outer Rings */}
-                <div className="absolute inset-0 rounded-full border-[3px] border-[#eec35b] border-l-transparent rotate-15 scale-105 opacity-80" />
-                <div className="absolute inset-0 rounded-full border-4 border-[#d4af37] border-b-transparent rotate-[-20deg] scale-110 opacity-90" />
-                <div className="absolute inset-0 rounded-full border-2 border-[#f4d068] border-r-transparent rotate-70 scale-100 opacity-60" />
+                <div className="absolute inset-0 rounded-full border-[2px] md:border-[3px] border-[#eec35b] border-l-transparent rotate-15 scale-105 opacity-80" />
+                <div className="absolute inset-0 rounded-full border-[3px] md:border-4 border-[#d4af37] border-b-transparent rotate-[-20deg] scale-110 opacity-90" />
+                <div className="absolute inset-0 rounded-full border-[1px] md:border-2 border-[#f4d068] border-r-transparent rotate-70 scale-100 opacity-60" />
                 {/* Solid Black Base */}
-                <div className="absolute inset-2 rounded-full bg-[#0a0a0a] border-2 border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.4)]" />
+                <div className="absolute inset-[3px] md:inset-2 rounded-full bg-[#0a0a0a] border-[1.5px] md:border-2 border-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.4)]" />
                 
                 {/* Text Content */}
                 <div className="relative z-10 flex flex-col items-center rotate-[-10deg] pt-1">
-                  <span className="text-white font-extrabold text-lg md:text-xl leading-none tracking-wide">MIT &</span>
-                  <span className="text-white font-extrabold text-lg md:text-xl leading-none tracking-wide mt-0.5">OHNE</span>
-                  <span className="text-white font-extrabold text-lg md:text-xl leading-none tracking-wide mt-0.5">TERMIN</span>
-                  {/* Small underline swoop */}
-                  <svg className="w-12 h-2 mt-1.5 text-[#eec35b]" viewBox="0 0 100 20" fill="currentColor">
+                  <span className="text-white font-extrabold text-[10px] sm:text-xs md:text-lg lg:text-xl leading-none tracking-wide">MIT &</span>
+                  <span className="text-white font-extrabold text-[10px] sm:text-xs md:text-lg lg:text-xl leading-none tracking-wide mt-[1px] md:mt-0.5">OHNE</span>
+                  <span className="text-white font-extrabold text-[10px] sm:text-xs md:text-lg lg:text-xl leading-none tracking-wide mt-[1px] md:mt-0.5">TERMIN</span>
+                  <svg className="w-8 h-1 sm:w-10 sm:h-1.5 md:w-12 md:h-2 mt-1 md:mt-1.5 text-[#eec35b]" viewBox="0 0 100 20" fill="currentColor">
                     <path d="M0,10 Q50,-5 100,10 Q50,0 0,10 Z" />
                   </svg>
                 </div>
               </div>
               
-              <div className="relative z-20 text-center max-w-5xl mx-auto flex flex-col justify-center h-full animate-in fade-in slide-in-from-bottom-8 duration-1000">
+              {/* HERO CONTENT CONTAINER */}
+              <div className="relative z-20 text-center w-full max-w-5xl mx-auto flex flex-col justify-center h-auto mt-12 md:mt-0 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 
-                <div className="mb-4 mt-8 md:mt-0">
-                  <span className="inline-block py-1.5 px-4 border border-[#d4af37]/40 rounded-full text-[#d4af37] text-[10px] md:text-xs font-bold tracking-[0.25em] uppercase bg-black/40 backdrop-blur-md shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                <div className="mb-4">
+                  <span className="inline-block py-1 md:py-1.5 px-3 md:px-4 border border-[#d4af37]/40 rounded-full text-[#d4af37] text-[9px] md:text-xs font-bold tracking-[0.25em] uppercase bg-black/40 backdrop-blur-md shadow-[0_0_15px_rgba(212,175,55,0.1)]">
                     Est. Schweinfurt
                   </span>
                 </div>
                 
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter mb-2 leading-tight text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tighter mb-2 md:mb-3 leading-[1.1] text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)]">
                   {t.hero.title}
                 </h1>
 
-                <h2 className="text-base sm:text-lg md:text-2xl font-semibold tracking-widest mb-6 uppercase bg-linear-to-r from-[#bf953f] via-[#fcf6ba] to-[#b38728] text-transparent bg-clip-text drop-shadow-lg">
+                <h2 className="text-sm sm:text-base md:text-xl lg:text-2xl font-semibold tracking-widest mb-6 uppercase bg-linear-to-r from-[#bf953f] via-[#fcf6ba] to-[#b38728] text-transparent bg-clip-text drop-shadow-lg px-2">
                   {t.hero.headlineSub || "Dein Barbershop & Herrenfriseur in Schweinfurt"}
                 </h2>
                 
-                <p className="text-sm md:text-base text-[#e8e6e3]/80 font-light mb-8 max-w-2xl mx-auto leading-relaxed drop-shadow-xl whitespace-pre-line">
+                <p className="text-xs sm:text-sm md:text-base text-[#e8e6e3]/80 font-light mb-10 max-w-2xl mx-auto leading-relaxed drop-shadow-xl whitespace-pre-line px-4">
                   {t.hero.sub}
                 </p>
 
-               {/* THE 4 CTA BUTTONS - EXACT MATCH DESIGN */}
-                <div className="flex flex-col md:grid md:grid-cols-2 gap-4 mb-12 max-w-3xl mx-auto w-full px-4">
+                {/* THE 4 CTA BUTTONS - STACK ON MOBILE, GRID ON DESKTOP */}
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-3 md:gap-4 mb-10 md:mb-12 max-w-3xl mx-auto w-full px-2 sm:px-4">
                   
-                  {/* BUTTON 1: TERMIN BUCHEN (Clickable) */}
-                  <button onClick={() => setPage('booking')} className="flex items-center justify-between w-full p-4 rounded-2xl bg-linear-to-r from-[#f9d472] via-[#e5b94c] to-[#d4af37] text-black shadow-[0_4px_20px_rgba(212,175,55,0.3)] hover:brightness-110 transition-all group cursor-pointer">
-                    <div className="flex items-center gap-4">
-                      <svg className="w-9 h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg>
+                  {/* BUTTON 1: TERMIN BUCHEN */}
+                  <button onClick={() => setPage('booking')} className="flex items-center justify-between w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-linear-to-r from-[#f9d472] via-[#e5b94c] to-[#d4af37] text-black shadow-[0_4px_20px_rgba(212,175,55,0.3)] hover:brightness-110 transition-all group cursor-pointer">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <svg className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg>
                       <div className="text-left flex flex-col">
-                        <span className="font-extrabold text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.book?.title || 'TERMIN BUCHEN'}</span>
-                        <span className="text-sm font-medium opacity-90">{t.hero.btns?.book?.sub || 'Jetzt online Termin vereinbaren'}</span>
+                        <span className="font-extrabold text-[15px] sm:text-lg md:text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.book?.title || 'TERMIN BUCHEN'}</span>
+                        <span className="text-[11px] sm:text-xs md:text-sm font-medium opacity-90">{t.hero.btns?.book?.sub || 'Jetzt online Termin vereinbaren'}</span>
                       </div>
                     </div>
-                    <svg className="w-7 h-7 stroke-[2.5] mr-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 stroke-[2.5] mr-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                   </button>
 
-                  {/* INFO BOX 2: OHNE TERMIN VORBEIKOMMEN (Static, NOT a hyperlink) */}
-                  <div className="flex items-center justify-between w-full p-4 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg">
-                    <div className="flex items-center gap-4">
-                      <svg className="w-9 h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg>
+                  {/* INFO BOX 2: OHNE TERMIN VORBEIKOMMEN */}
+                  <div className="flex items-center justify-between w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <svg className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg>
                       <div className="text-left flex flex-col">
-                        <span className="font-extrabold text-[17px] uppercase leading-[1.15] tracking-tight whitespace-pre-wrap">{t.hero.btns?.walkin?.title || 'OHNE TERMIN\nVORBEIKOMMEN'}</span>
-                        <span className="text-sm font-normal text-gray-300 mt-0.5">{t.hero.btns?.walkin?.sub || 'Einfach vorbeischauen'}</span>
+                        <span className="font-extrabold text-[14px] sm:text-[16px] md:text-[17px] uppercase leading-[1.15] tracking-tight whitespace-pre-wrap">{t.hero.btns?.walkin?.title || 'OHNE TERMIN\nVORBEIKOMMEN'}</span>
+                        <span className="text-[11px] sm:text-xs md:text-sm font-normal text-gray-300 mt-0.5">{t.hero.btns?.walkin?.sub || 'Einfach vorbeischauen'}</span>
                       </div>
                     </div>
-                    <svg className="w-7 h-7 stroke-[2.5] text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 stroke-[2.5] text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                   </div>
 
-                  {/* BUTTON 3: ROUTE ANZEIGEN (Hyperlink) */}
-                  <a href="https://maps.google.com/?q=REBO+SALON,Manggasse+6,97421+Schweinfurt" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between w-full p-4 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg hover:bg-white/10 hover:border-white/40 transition-all group cursor-pointer">
-                    <div className="flex items-center gap-4">
-                      <svg className="w-9 h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
+                  {/* BUTTON 3: ROUTE ANZEIGEN */}
+                  <a href="https://maps.google.com/?q=REBO+SALON,Manggasse+6,97421+Schweinfurt" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg hover:bg-white/10 hover:border-white/40 transition-all group cursor-pointer">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <svg className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
                       <div className="text-left flex flex-col">
-                        <span className="font-extrabold text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.route?.title || 'ROUTE ANZEIGEN'}</span>
-                        <span className="text-sm font-normal text-gray-300">{t.hero.btns?.route?.sub || 'So findest du uns'}</span>
+                        <span className="font-extrabold text-[15px] sm:text-lg md:text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.route?.title || 'ROUTE ANZEIGEN'}</span>
+                        <span className="text-[11px] sm:text-xs md:text-sm font-normal text-gray-300">{t.hero.btns?.route?.sub || 'So findest du uns'}</span>
                       </div>
                     </div>
-                    <svg className="w-7 h-7 stroke-[2.5] text-gray-400 mr-1 group-hover:translate-x-1 group-hover:text-white transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 stroke-[2.5] text-gray-400 mr-1 group-hover:translate-x-1 group-hover:text-white transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                   </a>
 
-                  {/* BUTTON 4: JETZT ANRUFEN (Hyperlink) */}
-                  <a href="tel:+4917642980985" className="flex items-center justify-between w-full p-4 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg hover:bg-white/10 hover:border-white/40 transition-all group cursor-pointer">
-                    <div className="flex items-center gap-4">
-                      <svg className="w-9 h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
+                  {/* BUTTON 4: JETZT ANRUFEN */}
+                  <a href="tel:+4917642980985" className="flex items-center justify-between w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-md border border-white/20 text-white shadow-lg hover:bg-white/10 hover:border-white/40 transition-all group cursor-pointer">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <svg className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
                       <div className="text-left flex flex-col">
-                        <span className="font-extrabold text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.call?.title || 'JETZT ANRUFEN'}</span>
-                        <span className="text-sm font-normal text-gray-300">{t.hero.btns?.call?.sub || 'Wir sind für dich da'}</span>
+                        <span className="font-extrabold text-[15px] sm:text-lg md:text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.call?.title || 'JETZT ANRUFEN'}</span>
+                        <span className="text-[11px] sm:text-xs md:text-sm font-normal text-gray-300">{t.hero.btns?.call?.sub || 'Wir sind für dich da'}</span>
                       </div>
                     </div>
-                    <svg className="w-7 h-7 stroke-[2.5] text-gray-400 mr-1 group-hover:translate-x-1 group-hover:text-white transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 stroke-[2.5] text-gray-400 mr-1 group-hover:translate-x-1 group-hover:text-white transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                   </a>
 
                 </div>
-                
+
                 {/* REVIEWS INTEGRATED INTO HERO */}
-                <div className="flex flex-col items-center justify-center pt-8 border-t border-white/10 max-w-2xl mx-auto w-full">
-                   <div className="flex justify-center mb-2 gap-1">
-                     {[1,2,3,4,5].map(star => <span key={star} className="text-[#d4af37] text-xl md:text-2xl drop-shadow-md">★</span>)}
+                <div className="flex flex-col items-center justify-center pt-6 md:pt-8 border-t border-white/10 max-w-2xl mx-auto w-full px-4">
+                   <div className="flex justify-center mb-1.5 md:mb-2 gap-1">
+                     {[1,2,3,4,5].map(star => <span key={star} className="text-[#d4af37] text-lg md:text-2xl drop-shadow-md">★</span>)}
                    </div>
-                   <p className="text-white text-sm md:text-base font-medium tracking-wide mb-1.5">{t.reviews?.title || 'Kundenbewertungen'}</p>
-                   <a href="https://www.google.com/maps/search/?api=1&query=REBO+SALON+Manggasse+6+Schweinfurt" target="_blank" rel="noopener noreferrer" className="text-gray-400 text-xs md:text-sm hover:text-white transition-colors underline decoration-white/30 underline-offset-4 font-light">
+                   <p className="text-white text-xs sm:text-sm md:text-base font-medium tracking-wide mb-1 md:mb-1.5">{t.reviews?.title || 'Kundenbewertungen'}</p>
+                   <a href="https://www.google.com/maps/search/?api=1&query=REBO+SALON+Manggasse+6+Schweinfurt" target="_blank" rel="noopener noreferrer" className="text-gray-400 text-[10px] sm:text-xs md:text-sm hover:text-white transition-colors underline decoration-white/30 underline-offset-4 font-light">
                       {t.reviews?.subtitle || 'Basierend auf echten Google Rezensionen'} &mdash; <span className="font-bold text-[#d4af37]">{t.reviews?.btn || 'Ansehen'}</span>
                    </a>
                 </div>
@@ -2060,34 +2061,34 @@ function MainContent() {
             
             {/* ABOUT SECTION */}
             <section className="px-4 md:px-6 max-w-5xl mx-auto py-16 md:py-24 flex flex-col md:flex-row gap-8 md:gap-16 items-center">
-              <div className="flex-1 md:pr-4">
+              <div className="flex-1 md:pr-4 text-center md:text-left">
                 <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider mb-4 text-white">
                   {lang === 'de' ? (generalSettings?.aboutTitleDe || t.about.title) : (generalSettings?.aboutTitleEn || t.about.title)}
                 </h2>
-                <div className="w-10 h-1 bg-[#d4af37] mb-8" />
+                <div className="w-10 h-1 bg-[#d4af37] mb-6 md:mb-8 mx-auto md:mx-0" />
                 
                 <p className="text-gray-300 text-sm md:text-base leading-relaxed font-light whitespace-pre-line">
                   {lang === 'de' ? (generalSettings?.aboutTextDe || t.about.text) : (generalSettings?.aboutTextEn || t.about.text)}
                 </p>
               </div>
               
-              <div className="w-full md:w-[40%] relative group max-w-[320px] mx-auto md:mx-0 mt-8 md:mt-0">
+              <div className="w-full md:w-[40%] relative group max-w-[260px] sm:max-w-[280px] md:max-w-[320px] mx-auto md:mx-0 mt-6 md:mt-0">
                 <div className="absolute inset-0 border border-[#d4af37]/50 translate-x-3 translate-y-3 rounded-sm" />
                 <img 
                   src={generalSettings?.aboutImage || "image_0200bf.jpg"} 
-                  className="relative z-10 w-full h-auto rounded-sm object-cover aspect-[3/4] grayscale-[20%] shadow-2xl" 
+                  className="relative z-10 w-full h-auto rounded-sm object-cover aspect-[3/4] grayscale-20 shadow-2xl" 
                   alt="Herrenhaarschnitt bei REBO SALON in Schweinfurt" 
                 />
               </div>
             </section>
 
             {/* WITH OR WITHOUT APPOINTMENT SECTION */}
-            <section className="bg-linear-to-b from-[#0f0f0f] to-[#161616] border-y border-white/5 py-20 px-4 md:px-6 text-center">
+            <section className="bg-linear-to-b from-[#0f0f0f] to-[#161616] border-y border-white/5 py-16 md:py-20 px-4 md:px-6 text-center">
                <div className="max-w-2xl mx-auto">
-                 <h2 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-[#d4af37] mb-6">{t.walkinBlock?.title || 'Mit & ohne Termin'}</h2>
-                 <p className="text-lg md:text-xl text-white font-medium mb-4">{t.walkinBlock?.text1 || 'Du möchtest spontan zum Friseur?'}</p>
-                 <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-2 font-light">{t.walkinBlock?.text2 || 'Bei REBO SALON kannst du mit oder ohne Termin vorbeikommen.'}</p>
-                 <p className="text-gray-400 text-sm md:text-base leading-relaxed font-light">{t.walkinBlock?.text3 || 'Besuche uns einfach während unserer Öffnungszeiten in der Schweinfurter Innenstadt.'}</p>
+                 <h2 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-[#d4af37] mb-4 md:mb-6">{t.walkinBlock?.title || 'Mit & ohne Termin'}</h2>
+                 <p className="text-base sm:text-lg md:text-xl text-white font-medium mb-3 md:mb-4">{t.walkinBlock?.text1 || 'Du möchtest spontan zum Friseur?'}</p>
+                 <p className="text-gray-400 text-xs sm:text-sm md:text-base leading-relaxed mb-2 font-light">{t.walkinBlock?.text2 || 'Bei REBO SALON kannst du mit oder ohne Termin vorbeikommen.'}</p>
+                 <p className="text-gray-400 text-xs sm:text-sm md:text-base leading-relaxed font-light">{t.walkinBlock?.text3 || 'Besuche uns einfach während unserer Öffnungszeiten in der Schweinfurter Innenstadt.'}</p>
                </div>
             </section>
 
