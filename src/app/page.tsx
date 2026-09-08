@@ -1394,17 +1394,7 @@ function AdminView() {
     </div>
   );
 }
-// --- MAIN WRAPPER ---
-export default function Page() {
-  return (
-    <CookieConsentProvider>
-      <AppProvider>
-        <CookieConsentBanner />
-        <MainContent />
-      </AppProvider>
-    </CookieConsentProvider>
-  );
-}
+
 // --- PUBLIC BOOKING VIEW ---
 function BookingView() {
   const { t, currentUser, addAppointment, servicesDB, getAvailableSlots, addNotification, addToWaitlist, stylistsDB } = useApp();
@@ -1938,7 +1928,7 @@ function MainContent() {
           <div className="animate-in fade-in duration-700 pb-16 pt-16 md:pt-20">
             
             {/* HERO SECTION - MOBILE OPTIMIZED & FULLY SCALED */}
-            <section className="relative min-h-[100dvh] h-auto flex flex-col items-center justify-center pt-32 pb-16 px-4 md:px-8 overflow-hidden">
+            <section className="relative min-h-dvh h-auto flex flex-col items-center justify-center pt-32 pb-16 px-4 md:px-8 overflow-hidden">
               
               {/* Background Image */}
               <div className="absolute inset-0 z-0">
@@ -1951,24 +1941,50 @@ function MainContent() {
                 />
               </div>
 
-              {/* MIT & OHNE TERMIN STICKER BADGE - RESPONSIVE SCALING */}
+              {/* MIT & OHNE TERMIN STICKER BADGE - ORIGINAL POSITION */}
               <div className="absolute top-24 right-2 sm:right-6 md:top-28 md:right-10 lg:right-24 z-30 w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-40 lg:h-40 flex items-center justify-center animate-in zoom-in duration-1000 delay-300 pointer-events-none">
                 {/* The "Brush" Outer Rings */}
-                <div className="absolute inset-0 rounded-full border-[2px] md:border-[3px] border-[#eec35b] border-l-transparent rotate-15 scale-105 opacity-80" />
+                <div className="absolute inset-0 rounded-full border-2 md:border-[3px] border-[#eec35b] border-l-transparent rotate-15 scale-105 opacity-80" />
                 <div className="absolute inset-0 rounded-full border-[3px] md:border-4 border-[#d4af37] border-b-transparent rotate-[-20deg] scale-110 opacity-90" />
-                <div className="absolute inset-0 rounded-full border-[1px] md:border-2 border-[#f4d068] border-r-transparent rotate-70 scale-100 opacity-60" />
+                <div className="absolute inset-0 rounded-full border md:border-2 border-[#f4d068] border-r-transparent rotate-70 scale-100 opacity-60" />
                 {/* Solid Black Base */}
-                <div className="absolute inset-[3px] md:inset-2 rounded-full bg-[#0a0a0a] border-[1.5px] md:border-2 border-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.4)]" />
+                <div className="absolute inset-0.75 md:inset-2 rounded-full bg-[#0a0a0a] border-[1.5px] md:border-2 border-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.4)]" />
                 
                 {/* Text Content */}
                 <div className="relative z-10 flex flex-col items-center rotate-[-10deg] pt-1">
                   <span className="text-white font-extrabold text-[10px] sm:text-xs md:text-lg lg:text-xl leading-none tracking-wide">MIT &</span>
-                  <span className="text-white font-extrabold text-[10px] sm:text-xs md:text-lg lg:text-xl leading-none tracking-wide mt-[1px] md:mt-0.5">OHNE</span>
-                  <span className="text-white font-extrabold text-[10px] sm:text-xs md:text-lg lg:text-xl leading-none tracking-wide mt-[1px] md:mt-0.5">TERMIN</span>
+                  <span className="text-white font-extrabold text-[10px] sm:text-xs md:text-lg lg:text-xl leading-none tracking-wide mt-px md:mt-0.5">OHNE</span>
+                  <span className="text-white font-extrabold text-[10px] sm:text-xs md:text-lg lg:text-xl leading-none tracking-wide mt-px md:mt-0.5">TERMIN</span>
                   <svg className="w-8 h-1 sm:w-10 sm:h-1.5 md:w-12 md:h-2 mt-1 md:mt-1.5 text-[#eec35b]" viewBox="0 0 100 20" fill="currentColor">
                     <path d="M0,10 Q50,-5 100,10 Q50,0 0,10 Z" />
                   </svg>
                 </div>
+              </div>
+
+              {/* DESKTOP HOURS BOX - PINNED TO RIGHT EDGE TO PREVENT OVERLAP */}
+              <div className="hidden lg:flex absolute right-4 xl:right-12 top-[60%] xl:top-[65%] -translate-y-1/2 z-30 p-5 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#d4af37]/40 shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex-col items-center w-[240px] animate-in fade-in slide-in-from-right-8 duration-1000 delay-500">
+                  <h4 className="font-bold text-[#d4af37] text-xs uppercase tracking-[0.2em] mb-4 text-center">
+                      {t.contact?.hoursLabel || 'Öffnungszeiten'}
+                  </h4>
+                  <div className="flex flex-col gap-2 text-sm text-left w-full">
+                      {t.contact?.hours?.map((h: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center gap-4 border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                          <span className="text-gray-300 font-light">{h.days}</span> 
+                          <span className="font-medium text-white">{h.time}</span>
+                      </div>
+                      )) || (
+                      <>
+                          <div className="flex justify-between items-center gap-4 border-b border-white/5 pb-2">
+                          <span className="text-gray-300 font-light">Mo - Sa</span> 
+                          <span className="font-medium text-white">09:00 - 19:00 Uhr</span>
+                          </div>
+                          <div className="flex justify-between items-center gap-4">
+                          <span className="text-gray-300 font-light">Sonntag</span> 
+                          <span className="font-medium text-white">Geschlossen</span>
+                          </div>
+                      </>
+                      )}
+                  </div>
               </div>
               
               {/* HERO CONTENT CONTAINER */}
@@ -1988,12 +2004,38 @@ function MainContent() {
                   {t.hero.headlineSub || "Dein Barbershop & Herrenfriseur in Schweinfurt"}
                 </h2>
                 
-                <p className="text-xs sm:text-sm md:text-base text-[#e8e6e3]/80 font-light mb-10 max-w-2xl mx-auto leading-relaxed drop-shadow-xl whitespace-pre-line px-4">
+                <p className="text-xs sm:text-sm md:text-base text-[#e8e6e3]/80 font-light mb-8 max-w-2xl mx-auto leading-relaxed drop-shadow-xl whitespace-pre-line px-4">
                   {t.hero.sub}
                 </p>
 
-                {/* THE 4 CTA BUTTONS - STACK ON MOBILE, GRID ON DESKTOP */}
-                <div className="flex flex-col md:grid md:grid-cols-2 gap-3 md:gap-4 mb-10 md:mb-12 max-w-3xl mx-auto w-full px-2 sm:px-4">
+                {/* MOBILE HOURS BOX (Hidden on lg screens) */}
+                <div className="lg:hidden mx-auto mb-10 p-4 md:p-5 rounded-2xl bg-[#0a0a0a]/70 backdrop-blur-md border border-[#d4af37]/30 shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex flex-col items-center w-[90%] sm:max-w-[280px]">
+                  <h4 className="font-bold text-[#d4af37] text-[10px] md:text-xs uppercase tracking-[0.2em] mb-3">
+                    {t.contact?.hoursLabel || 'Öffnungszeiten'}
+                  </h4>
+                  <div className="flex flex-col gap-1.5 text-xs sm:text-sm text-left w-full max-w-70">
+                    {t.contact?.hours?.map((h: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center gap-6 border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
+                        <span className="text-gray-300 font-light">{h.days}</span> 
+                        <span className="font-medium text-white">{h.time}</span>
+                      </div>
+                    )) || (
+                      <>
+                        <div className="flex justify-between items-center gap-6 border-b border-white/5 pb-1.5">
+                          <span className="text-gray-300 font-light">Mo - Sa</span> 
+                          <span className="font-medium text-white">09:00 - 19:00 Uhr</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-6">
+                          <span className="text-gray-300 font-light">Sonntag</span> 
+                          <span className="font-medium text-white">Geschlossen</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* THE 4 CTA BUTTONS */}
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-3 md:gap-4 mb-10 md:mb-12 max-w-3xl mx-auto w-full px-2 sm:px-4 relative z-20">
                   
                   {/* BUTTON 1: TERMIN BUCHEN */}
                   <button onClick={() => setPage('booking')} className="flex items-center justify-between w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-linear-to-r from-[#f9d472] via-[#e5b94c] to-[#d4af37] text-black shadow-[0_4px_20px_rgba(212,175,55,0.3)] hover:brightness-110 transition-all group cursor-pointer">
@@ -2076,7 +2118,7 @@ function MainContent() {
                 <div className="absolute inset-0 border border-[#d4af37]/50 translate-x-3 translate-y-3 rounded-sm" />
                 <img 
                   src={generalSettings?.aboutImage || "image_0200bf.jpg"} 
-                  className="relative z-10 w-full h-auto rounded-sm object-cover aspect-[3/4] grayscale-20 shadow-2xl" 
+                  className="relative z-10 w-full h-auto rounded-sm object-cover aspect-3/4 grayscale-20 shadow-2xl" 
                   alt="Herrenhaarschnitt bei REBO SALON in Schweinfurt" 
                 />
               </div>
@@ -2158,13 +2200,26 @@ function MainContent() {
       </main>
 
       {page !== 'admin' && page !== 'booking' && page !== 'contact' && page !== 'auth' && page !== 'profile' && (
-        <footer className="w-full py-6 text-center text-xs tracking-wider border-t border-white/5 text-gray-500">
-          <p>
-            © {new Date().getFullYear()} Rebo Salon. {t.common?.footer || 'Alle Rechte vorbehalten.'}
-            <span onDoubleClick={() => setPage('admin')} className="cursor-default select-none ml-1 opacity-0 hover:opacity-10 transition-opacity">.</span>
-          </p>
+        <footer className="w-full py-8 flex flex-col items-center justify-center text-xs tracking-wider border-t border-white/5 text-gray-500 bg-[#0a0a0a]">
+          <div className="w-full max-w-sm text-center">
+            <p>
+              © {new Date().getFullYear()} Rebo Salon. {t.common?.footer || 'Alle Rechte vorbehalten.'}
+              <span onDoubleClick={() => setPage('admin')} className="cursor-default select-none ml-1 opacity-0 hover:opacity-10 transition-opacity">.</span>
+            </p>
+          </div>
         </footer>
       )}
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <CookieConsentProvider>
+      <AppProvider>
+        <CookieConsentBanner />
+        <MainContent />
+      </AppProvider>
+    </CookieConsentProvider>
   );
 }
