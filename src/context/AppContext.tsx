@@ -81,6 +81,10 @@ export interface AppContextType {
   notifications: Notification[]; addNotification: (msg: string, type?: 'success' | 'info' | 'error') => void;
   alerts: Alert[]; markAlertRead: (id: string) => Promise<void>; clearAlerts: () => Promise<void>;
   getAvailableSlots: (date: string, stylist: string, requiredDuration?: number) => TimeSlot[];
+  getTranslatedServices: () => ServiceItem[];
+  getTranslatedProducts: () => ProductItem[];
+  getTranslatedStylists: () => StylistItem[];
+  getTranslatedGeneralSettings: () => GeneralSettings;
 }
 
 export const fallbackTranslations: TranslationData = {
@@ -190,11 +194,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'rick.maity07@gmail.com';
   
   const getAuthHeaders = async () => {
-    const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
   };
 
   const addNotification = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
@@ -294,7 +299,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     const unsubTrans = onSnapshot(doc(db, 'settings', 'translations'), (snap) => {
-      if (snap.exists()) setTranslations({ ...fallbackTranslations, ...(snap.data() as TranslationData) });
+      if (snap.exists()) {
+        setTranslations({ ...fallbackTranslations, ...(snap.data() as TranslationData) });
+      } else {
+        // Document doesn't exist (e.g., TTL deleted it) — initialize with fallback translations
+        // and write it back to Firestore so it's recreated
+        setTranslations(fallbackTranslations);
+        if (typeof window !== 'undefined') {
+          setDoc(doc(db, 'settings', 'translations'), { 
+            ...fallbackTranslations,
+            updatedAt: new Date().toISOString()
+          }, { merge: true }).catch(console.error);
+        }
+      }
     });
     const unsubSrv = onSnapshot(collection(db, 'services'), (snap) => {
       setServicesDB(snap.docs.map(d => ({ id: d.id, ...d.data() } as ServiceItem)));
@@ -341,6 +358,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isAdminAuth]);
 
+  const buildFullTranslationSource = () => {
+    const source = JSON.parse(JSON.stringify(fallbackTranslations.de));
+    
+    // Add dynamic services
+    if (servicesDB.length > 0) {
+      source.dynamicServices = servicesDB.map(s => ({
+        id: s.id,
+        name: s.name,
+        price: s.price,
+        oldPrice: s.oldPrice || '',
+        durationMins: s.durationMins
+      }));
+    }
+    
+    // Add dynamic products
+    if (productsDB.length > 0) {
+      source.dynamicProducts = productsDB.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        desc: p.desc,
+        image: p.image,
+        stockCount: p.stockCount || 0
+      }));
+    }
+    
+    // Add dynamic stylists
+    if (stylistsDB.length > 0) {
+      source.dynamicStylists = stylistsDB.map(s => ({
+        id: s.id,
+        name: s.name,
+        services: s.services
+      }));
+    }
+    
+    // Add general settings (admin-editable content)
+    if (generalSettings) {
+      source.generalSettings = {
+        walkinWaitTime: generalSettings.walkinWaitTime || '',
+        heroImage: generalSettings.heroImage || '',
+        aboutImage: generalSettings.aboutImage || '',
+        aboutTitleDe: generalSettings.aboutTitleDe || '',
+        aboutTextDe: generalSettings.aboutTextDe || '',
+        aboutTitleEn: generalSettings.aboutTitleEn || '',
+        aboutTextEn: generalSettings.aboutTextEn || '',
+        galleryImages: generalSettings.galleryImages || [],
+        holidays: generalSettings.holidays || []
+      };
+    }
+    
+    return source;
+  };
+
   const changeLanguage = async (newLang: string) => {
     if (newLang === lang) return;
     if (newLang === 'de' || translations[newLang]) {
@@ -350,10 +420,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setIsTranslatingUI(true);
     try {
+      const fullSourceDict = buildFullTranslationSource();
       const res = await fetch('/api/translate-ui', {
         method: 'POST',
         headers: await getAuthHeaders(),
-        body: JSON.stringify({ targetLang: newLang, sourceDict: fallbackTranslations.de })
+        body: JSON.stringify({ targetLang: newLang, sourceDict: fullSourceDict })
       });
       const data = await res.json();
       if (data.translatedDict) {
@@ -485,7 +556,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTranslation = async (l: Language, section: string, key: string, val: string) => {
     if (!isAdminAuth) return;
-    await updateDoc(doc(db, 'settings', 'translations'), { [`${l}.${section}.${key}`]: val });
+    await updateDoc(doc(db, 'settings', 'translations'), { 
+      [`${l}.${section}.${key}`]: val,
+      updatedAt: new Date().toISOString()
+    });
     addNotification("Translation saved via Cloud!", 'success');
   };
 
@@ -685,6 +759,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const t = translations[lang] || fallbackTranslations[lang] || fallbackTranslations.de;
 
+  // Helper to get translated dynamic content (services, products, stylists, generalSettings)
+  const getTranslatedServices = () => {
+    const trans = translations[lang];
+    if (trans?.dynamicServices && trans.dynamicServices.length > 0) {
+      return trans.dynamicServices.map((ts: any, i: number) => ({
+        ...servicesDB[i],
+        name: ts.name || servicesDB[i]?.name,
+        price: ts.price || servicesDB[i]?.price,
+        oldPrice: ts.oldPrice || servicesDB[i]?.oldPrice,
+      }));
+    }
+    return servicesDB;
+  };
+
+  const getTranslatedProducts = () => {
+    const trans = translations[lang];
+    if (trans?.dynamicProducts && trans.dynamicProducts.length > 0) {
+      return trans.dynamicProducts.map((tp: any, i: number) => ({
+        ...productsDB[i],
+        name: tp.name || productsDB[i]?.name,
+        price: tp.price || productsDB[i]?.price,
+        desc: tp.desc || productsDB[i]?.desc,
+      }));
+    }
+    return productsDB;
+  };
+
+  const getTranslatedStylists = () => {
+    const trans = translations[lang];
+    if (trans?.dynamicStylists && trans.dynamicStylists.length > 0) {
+      return trans.dynamicStylists.map((ts: any, i: number) => ({
+        ...stylistsDB[i],
+        name: ts.name || stylistsDB[i]?.name,
+        services: ts.services || stylistsDB[i]?.services,
+      }));
+    }
+    return stylistsDB;
+  };
+
+  const getTranslatedGeneralSettings = () => {
+    const trans = translations[lang];
+    if (trans?.generalSettings) {
+      return { ...generalSettings, ...trans.generalSettings };
+    }
+    return generalSettings;
+  };
+
   return (
     <AppContext.Provider value={{ 
       lang, setLang, changeLanguage, isTranslatingUI, page, setPage: setPageRouter, t, updateTranslation,
@@ -693,7 +814,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       appointments, addAppointment, addAdminAppointment, updateAppointmentStatus, notifications, addNotification, getAvailableSlots,
       waitlist, addToWaitlist, removeFromWaitlist, notifyWaitlist, resendConfirmation,
       stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings,
-      alerts, markAlertRead, clearAlerts
+      alerts, markAlertRead, clearAlerts,
+      getTranslatedServices, getTranslatedProducts, getTranslatedStylists, getTranslatedGeneralSettings
     }}>
       {children}
     </AppContext.Provider>

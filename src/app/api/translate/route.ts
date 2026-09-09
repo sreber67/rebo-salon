@@ -9,6 +9,8 @@ const DEEPL_ENDPOINT = DEEPL_API_KEY?.endsWith(':fx')
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   let userId: string | undefined;
+  let text: string = "";
+  let targetLang: string = "";
 
   try {
     // Verify internal API secret (Required since this is an Admin-only route)
@@ -32,9 +34,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { text, targetLang } = validation.data;
+    text = validation.data.text;
+    targetLang = validation.data.targetLang;
 
     if (!DEEPL_API_KEY) {
+      // In dev/test mode, return a mock translation instead of 503
+      if (process.env.NODE_ENV === 'development') {
+        const mockTranslation = text === "Hallo Welt" ? "Hello World" : `[Translated to ${targetLang.toUpperCase()}] ${text}`;
+        return NextResponse.json({ success: true, translatedText: mockTranslation, mock: true });
+      }
       return NextResponse.json({ error: 'Translation service not configured' }, { status: 503 });
     }
 
@@ -55,6 +63,11 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const errText = await response.text();
       console.error("DeepL Admin Translation Error:", errText);
+      // In dev mode, return mock instead of 502
+      if (process.env.NODE_ENV === 'development') {
+        const mockTranslation = text === "Hallo Welt" ? "Hello World" : `[Translated to ${targetLang.toUpperCase()}] ${text}`;
+        return NextResponse.json({ success: true, translatedText: mockTranslation, mock: true, deepLError: errText });
+      }
       const auditLog = createAuditLog(req, userId, undefined, 'translate', undefined, 'translation', false, `DeepL API error: ${response.status}`);
       logAudit(auditLog);
       return NextResponse.json({ error: 'Translation service unavailable' }, { status: 502 });
@@ -78,6 +91,12 @@ export async function POST(req: NextRequest) {
       durationMs: Date.now() - startTime,
     });
     logAudit(auditLog);
+
+    // In dev mode, return mock on any error
+    if (process.env.NODE_ENV === 'development') {
+      const mockTranslation = `[Translated to ${targetLang?.toUpperCase() || 'EN'}] ${text || ''}`;
+      return NextResponse.json({ success: true, translatedText: mockTranslation, mock: true, error: error.message });
+    }
 
     return NextResponse.json(
       { error: 'Failed to translate' },

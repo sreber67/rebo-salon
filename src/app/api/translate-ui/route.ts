@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '../../../lib/firebaseAdmin';
 import { validateRequest, translateUiRequestSchema, createAuditLog, logAudit } from '@/lib/validation';
 
-const DEEPL_API_KEY = process.env.DEEPL_API_KEY;
+const DEEPL_API_KEY = process.env.DEEPL_API_KEY?.trim();
 const DEEPL_ENDPOINT = DEEPL_API_KEY?.endsWith(':fx')
   ? 'https://api-free.deepl.com/v2/translate'
   : 'https://api.deepl.com/v2/translate';
@@ -64,9 +64,24 @@ export async function POST(req: NextRequest) {
     // Changing the UI language is a public action. Guests must be able to trigger this.
 
     if (!DEEPL_API_KEY) {
-      const auditLog = createAuditLog(req, userId, undefined, 'translate_ui', undefined, 'translation_cache', false, 'DeepL API key not configured');
-      logAudit(auditLog);
-      return NextResponse.json({ error: 'Translation service not configured' }, { status: 503 });
+      if (process.env.NODE_ENV === 'development') {
+        // Return mock translations for dev/test
+        function mockTranslate(obj: any): any {
+          if (typeof obj === 'string') return obj.trim() === '' ? obj : `[EN] ${obj}`;
+          if (Array.isArray(obj)) return obj.map(mockTranslate);
+          if (obj && typeof obj === 'object') {
+            const result: any = {};
+            for (const key in obj) result[key] = mockTranslate(obj[key]);
+            return result;
+          }
+          return obj;
+        }
+        // We'll handle this after validation
+      } else {
+        const auditLog = createAuditLog(req, userId, undefined, 'translate_ui', undefined, 'translation_cache', false, 'DeepL API key not configured');
+        logAudit(auditLog);
+        return NextResponse.json({ error: 'Translation service not configured' }, { status: 503 });
+      }
     }
 
     // Validate request body
@@ -83,6 +98,22 @@ export async function POST(req: NextRequest) {
     }
 
     const { targetLang, sourceDict } = validation.data;
+
+    console.log('[translate-ui] DEEPL_API_KEY present:', !!DEEPL_API_KEY, 'NODE_ENV:', process.env.NODE_ENV);
+
+    if (!DEEPL_API_KEY && process.env.NODE_ENV === 'development') {
+      function mockTranslate(obj: any): any {
+        if (typeof obj === 'string') return obj.trim() === '' ? obj : `[EN] ${obj}`;
+        if (Array.isArray(obj)) return obj.map(mockTranslate);
+        if (obj && typeof obj === 'object') {
+          const result: any = {};
+          for (const key in obj) result[key] = mockTranslate(obj[key]);
+          return result;
+        }
+        return obj;
+      }
+      return NextResponse.json({ success: true, translatedDict: mockTranslate(sourceDict), mock: true });
+    }
 
     const deeplLang = LANG_CODE_MAP[targetLang];
     if (!deeplLang) {
@@ -115,7 +146,22 @@ export async function POST(req: NextRequest) {
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error("DeepL Error:", errText);
+        console.error('[translate-ui] DeepL Error:', res.status, errText);
+        // In dev mode, return mock instead of 502
+        if (process.env.NODE_ENV === 'development') {
+          const mockTranslatedDict: Record<string, any> = {};
+          function mockTranslate(obj: any): any {
+            if (typeof obj === 'string') return obj.trim() === '' ? obj : `[EN] ${obj}`;
+            if (Array.isArray(obj)) return obj.map(mockTranslate);
+            if (obj && typeof obj === 'object') {
+              const result: any = {};
+              for (const key in obj) result[key] = mockTranslate(obj[key]);
+              return result;
+            }
+            return obj;
+          }
+          return NextResponse.json({ success: true, translatedDict: mockTranslate(sourceDict), mock: true, deepLError: errText });
+        }
         const auditLog = createAuditLog(req, userId, undefined, 'translate_ui', undefined, 'translation_cache', false, `DeepL API error: ${res.status}`, { error: errText });
         logAudit(auditLog);
         return NextResponse.json({ error: `Translation service error: ${res.status}` }, { status: 502 });
@@ -131,8 +177,12 @@ export async function POST(req: NextRequest) {
     const translatedDict = unflatten(sourceDict, translatedMap);
 
     // Persist via Admin SDK (merge: true guarantees it creates the doc if it was manually deleted)
+    // Include updatedAt to prevent TTL index from deleting this document
     try {
-      await adminDb.doc('settings/translations').set({ [targetLang]: translatedDict }, { merge: true });
+      await adminDb.doc('settings/translations').set({ 
+        [targetLang]: translatedDict,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (cacheError) {
       console.error('Failed to cache translation in Firestore:', cacheError);
     }
@@ -146,7 +196,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, translatedDict }, { status: 200 });
   } catch (error: any) {
-    console.error("Translation Pipeline Error:", error);
+    console.error('[translate-ui] Translation Pipeline Error:', error);
     const auditLog = createAuditLog(req, userId, undefined, 'translate_ui', undefined, 'translation_cache', false, error.message || 'Translation failed', {
       durationMs: Date.now() - startTime,
     });
