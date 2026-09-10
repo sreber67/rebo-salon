@@ -62,10 +62,37 @@ export function getAdminDb(): Firestore {
 }
 
 /**
- * Backward compatibility exports
+ * Backward compatibility exports.
+ * IMPORTANT: these are lazy proxies, not eager instances. They used to call
+ * getAdminAuth()/getAdminDb() directly at module load time, which meant that
+ * simply IMPORTING this file - in /api/email, /api/translate-ui, or any other
+ * route - triggered Firebase Admin SDK initialization immediately, before
+ * that route's own request handler (and its own try/catch) ever ran. Any
+ * hiccup in that init (a cold-start timing issue, a transient credential
+ * problem in one particular serverless instance, etc.) crashed the entire
+ * route with an opaque, unhandled 500 - and because /api/email and
+ * /api/translate-ui both import this file, a single shared failure here
+ * took both features down together, which is exactly what was observed.
+ *
+ * Wrapping in a Proxy defers real initialization until a property is
+ * actually accessed (e.g. adminDb.doc(...)), so any failure surfaces inside
+ * the calling route's own try/catch instead of at import time.
  */
-export const adminAuth = getAdminAuth();
-export const adminDb = getAdminDb();
+export const adminAuth: Auth = new Proxy({} as Auth, {
+  get(_target, prop, _receiver) {
+    const real = getAdminAuth() as any;
+    const value = real[prop];
+    return typeof value === 'function' ? value.bind(real) : value;
+  },
+});
+
+export const adminDb: Firestore = new Proxy({} as Firestore, {
+  get(_target, prop, _receiver) {
+    const real = getAdminDb() as any;
+    const value = real[prop];
+    return typeof value === 'function' ? value.bind(real) : value;
+  },
+});
 
 /**
  * Custom Claims Management
