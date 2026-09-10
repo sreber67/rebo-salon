@@ -578,13 +578,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const sendDualEmail = async (uEmail: string | null, uSubj: string, uMsg: string, aSubj: string, aMsg: string) => {
     try {
       const headers = await getAuthHeaders();
+      const promises: Promise<Response>[] = [];
+      
       if (uEmail) {
-        sendEmailChecked(headers, { email: uEmail, subject: uSubj, message: uMsg }, 'user');
+        promises.push(fetch('/api/email', { method: 'POST', headers, body: JSON.stringify({ email: uEmail, subject: uSubj, message: uMsg }) }));
       }
-      if (aSubj && aMsg && adminEmail) {
-        sendEmailChecked(headers, { email: adminEmail, subject: aSubj, message: aMsg }, 'admin');
-      } else if (aSubj && aMsg && !adminEmail) {
-        console.error('Admin email not sent: NEXT_PUBLIC_ADMIN_EMAIL is not set');
+      if (aSubj && aMsg) {
+        promises.push(fetch('/api/email', { method: 'POST', headers, body: JSON.stringify({ email: adminEmail, subject: aSubj, message: aMsg }) }));
+      }
+      
+      if (promises.length > 0) {
+        const results = await Promise.allSettled(promises);
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(`Email ${index} failed:`, result.reason);
+          } else if (!result.value.ok) {
+            console.error(`Email ${index} returned non-ok status:`, result.value.status);
+          }
+        });
       }
     } catch (e) {
       console.error("Dual Email Execution Failed", e);
