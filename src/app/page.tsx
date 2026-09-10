@@ -14,10 +14,10 @@ import { getInternalHeaders } from '@/lib/validation';
 import { AppProvider, useApp, Appointment, ServiceItem, ProductItem, fallbackTranslations, TimeSlot, UserProfile, WaitlistItem, StylistItem, Guest } from '@/context/AppContext';
 
 const countryCodes = [
-  { code: '+49', label: 'Deutschland ≡ƒç⌐≡ƒç¬' }, { code: '+43', label: '├ûsterreich ≡ƒçª≡ƒç╣' }, { code: '+41', label: 'Schweiz ≡ƒç¿≡ƒç¡' },
-  { code: '+1', label: 'USA/Kanada ≡ƒç║≡ƒç╕' }, { code: '+44', label: 'UK ≡ƒç¼≡ƒçº' }, { code: '+33', label: 'Frankreich ≡ƒç½≡ƒç╖' },
-  { code: '+39', label: 'Italien ≡ƒç«≡ƒç╣' }, { code: '+34', label: 'Spanien ≡ƒç¬≡ƒç╕' }, { code: '+31', label: 'Niederlande ≡ƒç│≡ƒç▒' },
-  { code: '+32', label: 'Belgien ≡ƒçº≡ƒç¬' }, { code: '+48', label: 'Polen ≡ƒç╡≡ƒç▒' }, { code: '+46', label: 'Schweden ≡ƒç╕≡ƒç¬' },
+  { code: '+49', label: 'Deutschland 🇩🇪' }, { code: '+43', label: 'Österreich 🇦🇹' }, { code: '+41', label: 'Schweiz 🇨🇭' },
+  { code: '+1', label: 'USA/Kanada 🇺🇸' }, { code: '+44', label: 'UK 🇬🇧' }, { code: '+33', label: 'Frankreich 🇫🇷' },
+  { code: '+39', label: 'Italien 🇮🇹' }, { code: '+34', label: 'Spanien 🇪🇸' }, { code: '+31', label: 'Niederlande 🇳🇱' },
+  { code: '+32', label: 'Belgien 🇧🇪' }, { code: '+48', label: 'Polen 🇵🇱' }, { code: '+46', label: 'Schweden 🇸🇪' },
 ];
 
 const initialSlots: TimeSlot[] = [
@@ -32,10 +32,10 @@ function LanguageSelector() {
   const [search, setSearch] = useState('');
   
   const languages = [
-    { code: 'de', name: 'Deutsch' }, { code: 'en', name: 'English' }, { code: 'es', name: 'Espa├▒ol' },
-    { code: 'fr', name: 'Fran├ºais' }, { code: 'it', name: 'Italiano' }, { code: 'nl', name: 'Nederlands' },
-    { code: 'tr', name: 'T├╝rk├ºe' }, { code: 'pl', name: 'Polski' }, { code: 'ru', name: '╨á╤â╤ü╤ü╨║╨╕╨╣' },
-    { code: 'ar', name: '╪º┘ä╪╣╪▒╪¿┘è╪⌐' }, { code: 'zh', name: 'Σ╕¡µûç' }, { code: 'ja', name: 'µùÑµ£¼Φ¬₧' }
+    { code: 'de', name: 'Deutsch' }, { code: 'en', name: 'English' }, { code: 'es', name: 'Español' },
+    { code: 'fr', name: 'Français' }, { code: 'it', name: 'Italiano' }, { code: 'nl', name: 'Nederlands' },
+    { code: 'tr', name: 'Türkçe' }, { code: 'pl', name: 'Polski' }, { code: 'ru', name: 'Русский' },
+    { code: 'ar', name: 'العربية' }, { code: 'zh', name: '中文' }, { code: 'ja', name: '日本語' }
   ];
 
   const filteredLangs = languages.filter(l => l.name.toLowerCase().includes(search.toLowerCase()) || l.code.toLowerCase().includes(search.toLowerCase()));
@@ -49,7 +49,7 @@ function LanguageSelector() {
         className="flex items-center gap-2 px-3 py-1.5 border rounded-full text-xs font-bold transition-colors border-gray-700 text-gray-300 hover:text-white"
       >
         {isTranslatingUI ? (
-          <span className="animate-pulse">{t.common?.loading || 'L├ñdt...'}</span>
+          <span className="animate-pulse">{t.common?.loading || 'Lädt...'}</span>
         ) : (
           <>
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -116,7 +116,7 @@ function NotificationBell() {
               ))
             }
           </div>
-          {userAlerts.length > 0 && <button onClick={() => { clearAlerts(); setIsOpen(false); }} className="w-full text-center text-[10px] text-red-400 hover:text-red-300 uppercase tracking-widest mt-2 pt-2 border-t border-gray-800">{notifTrans?.clearAll || 'Alle l├╢schen'}</button>}
+          {userAlerts.length > 0 && <button onClick={() => { clearAlerts(); setIsOpen(false); }} className="w-full text-center text-[10px] text-red-400 hover:text-red-300 uppercase tracking-widest mt-2 pt-2 border-t border-gray-800">{notifTrans?.clearAll || 'Alle löschen'}</button>}
         </div>
       )}
     </div>
@@ -166,7 +166,7 @@ function AuthView() {
         await loginEmail(email, pass);
       } else {
         if (!hasLength) { setInlineAuthError("Das Passwort muss mindestens 8 Zeichen lang sein."); return; }
-        if (!phoneInput || !name) { setInlineAuthError("Bitte f├╝llen Sie alle Daten aus."); return; }
+        if (!phoneInput || !name) { setInlineAuthError("Bitte füllen Sie alle Daten aus."); return; }
         const fullPhone = `${countryCode}${phoneInput}`.replace(/\s+/g, '');
         await registerEmail(email, pass, name, fullPhone);
       }
@@ -210,18 +210,18 @@ function AuthView() {
                 {!isLogin && pass.length > 0 && (
                   <div className="mt-4 p-4 border border-white/5 bg-black/40 rounded-sm">
                     <div className="flex justify-between items-center text-xs mb-2">
-                      <span className="text-gray-400">{authTrans.passStrength || 'Passwort-St├ñrke:'}</span>
+                      <span className="text-gray-400">{authTrans.passStrength || 'Passwort-Stärke:'}</span>
                       <span className={`${passColor.replace('bg-', 'text-')} font-bold uppercase tracking-widest`}>{passLabel}</span>
                     </div>
                     <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden mb-3">
                       <div className={`h-full transition-all duration-300 ${passColor}`} style={{ width: passWidth }} />
                     </div>
                     <ul className="text-[10px] text-gray-500 space-y-1.5">
-                      <li className={hasLength ? 'text-green-400' : ''}>{hasLength ? 'Γ£ô' : 'Γùï'} {authTrans.ruleLength || 'Mindestens 8 Zeichen'}</li>
-                      <li className={hasUpper ? 'text-green-400' : ''}>{hasUpper ? 'Γ£ô' : 'Γùï'} {authTrans.ruleUpper || 'Ein Gro├ƒbuchstabe'}</li>
-                      <li className={hasLower ? 'text-green-400' : ''}>{hasLower ? 'Γ£ô' : 'Γùï'} {authTrans.ruleLower || 'Ein Kleinbuchstabe'}</li>
-                      <li className={hasNum ? 'text-green-400' : ''}>{hasNum ? 'Γ£ô' : 'Γùï'} {authTrans.ruleNum || 'Eine Zahl'}</li>
-                      <li className={hasSpec ? 'text-green-400' : ''}>{hasSpec ? 'Γ£ô' : 'Γùï'} {authTrans.ruleSpec || 'Ein Sonderzeichen'}</li>
+                      <li className={hasLength ? 'text-green-400' : ''}>{hasLength ? '✓' : '○'} {authTrans.ruleLength || 'Mindestens 8 Zeichen'}</li>
+                      <li className={hasUpper ? 'text-green-400' : ''}>{hasUpper ? '✓' : '○'} {authTrans.ruleUpper || 'Ein Großbuchstabe'}</li>
+                      <li className={hasLower ? 'text-green-400' : ''}>{hasLower ? '✓' : '○'} {authTrans.ruleLower || 'Ein Kleinbuchstabe'}</li>
+                      <li className={hasNum ? 'text-green-400' : ''}>{hasNum ? '✓' : '○'} {authTrans.ruleNum || 'Eine Zahl'}</li>
+                      <li className={hasSpec ? 'text-green-400' : ''}>{hasSpec ? '✓' : '○'} {authTrans.ruleSpec || 'Ein Sonderzeichen'}</li>
                     </ul>
                   </div>
                 )}
@@ -320,7 +320,7 @@ function ProfileViewLocal() {
     try {
       if (editEmail !== currentUser.email && auth.currentUser) {
         await verifyBeforeUpdateEmail(auth.currentUser, editEmail);
-        addNotification("Best├ñtigungs-E-Mail gesendet! Bitte pr├╝fen Sie Ihren Posteingang.", "info");
+        addNotification("Bestätigungs-E-Mail gesendet! Bitte prüfen Sie Ihren Posteingang.", "info");
       }
       const fullPhone = `${editCountryCode}${editPhone}`.replace(/\s+/g, '');
       await updateDoc(doc(db, 'users', currentUser.id), { name: editName, phone: fullPhone });
@@ -331,7 +331,7 @@ function ProfileViewLocal() {
 
   const handleSendPassOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPass !== confirmPass) return addNotification("Passw├╢rter stimmen nicht ├╝berein.", "error");
+    if (newPass !== confirmPass) return addNotification("Passwörter stimmen nicht überein.", "error");
     if (newPass.length < 8) return addNotification("Passwort muss mindestens 8 Zeichen lang sein.", "error");
     
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -345,17 +345,17 @@ function ProfileViewLocal() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           email: currentUser.email,
-          subject: "Rebo Salon: Passwort├ñnderung Best├ñtigung",
-          message: `Hallo ${currentUser.name},\n\nDein Best├ñtigungscode zur Passwort├ñnderung lautet: ${otp}\n\nFalls du diese ├änderung nicht angefordert hast, ignoriere diese E-Mail.\n\nDein Rebo Salon Team`
+          subject: "Rebo Salon: Passwortänderung Bestätigung",
+          message: `Hallo ${currentUser.name},\n\nDein Bestätigungscode zur Passwortänderung lautet: ${otp}\n\nFalls du diese Änderung nicht angefordert hast, ignoriere diese E-Mail.\n\nDein Rebo Salon Team`
         })
       });
-      addNotification("Best├ñtigungscode an E-Mail gesendet!", "info");
+      addNotification("Bestätigungscode an E-Mail gesendet!", "info");
     } catch (err) { addNotification("Fehler beim Senden Codes.", "error"); setIsVerifyingPassOTP(false); }
   };
 
   const handleVerifyPassOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputPassOTP !== generatedPassOTP) return addNotification("Ung├╝ltiger Code. Bitte erneut versuchen.", "error");
+    if (inputPassOTP !== generatedPassOTP) return addNotification("Ungültiger Code. Bitte erneut versuchen.", "error");
     try {
       await updateUserPassword(oldPass, newPass);
       setOldPass(''); setNewPass(''); setConfirmPass(''); setInputPassOTP(''); setIsVerifyingPassOTP(false);
@@ -428,10 +428,10 @@ function ProfileViewLocal() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-gray-800 pb-4 gap-4">
          <div>
            <h2 className="text-3xl md:text-5xl font-bold mb-2 uppercase tracking-tight">{t.profile.title}</h2>
-           <p className="text-gray-400 text-sm md:text-base">{t.profile?.welcome || "Willkommen zur├╝ck"}, {currentUser.name}</p>
+           <p className="text-gray-400 text-sm md:text-base">{t.profile?.welcome || "Willkommen zurück"}, {currentUser.name}</p>
          </div>
          <div className="flex gap-2 bg-black border border-white/10 p-1 rounded-sm">
-            <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors ${activeTab === 'overview' ? 'bg-[#d4af37] text-black' : 'text-gray-400 hover:text-white'}`}>{t.profile?.overview || "├£bersicht"}</button>
+            <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors ${activeTab === 'overview' ? 'bg-[#d4af37] text-black' : 'text-gray-400 hover:text-white'}`}>{t.profile?.overview || "Übersicht"}</button>
             <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors ${activeTab === 'settings' ? 'bg-[#d4af37] text-black' : 'text-gray-400 hover:text-white'}`}>{t.profile?.settings || "Einstellungen"}</button>
          </div>
       </div>
@@ -441,11 +441,11 @@ function ProfileViewLocal() {
            <form onSubmit={handleUpdateSettings} className="space-y-6">
              <h3 className="text-xl font-bold mb-4">{t.profile?.editProfile || "Profil bearbeiten"}</h3>
              <div>
-               <label className="block text-xs uppercase text-gray-400 mb-2">Vollst├ñndiger Name</label>
+               <label className="block text-xs uppercase text-gray-400 mb-2">Vollständiger Name</label>
                <input required value={editName} onChange={e=>setEditName(e.target.value)} type="text" className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
              </div>
              <div>
-               <label className="block text-xs uppercase text-gray-400 mb-2">E-Mail-Adresse (├änderung erfordert Best├ñtigung)</label>
+               <label className="block text-xs uppercase text-gray-400 mb-2">E-Mail-Adresse (Änderung erfordert Bestätigung)</label>
                <input required value={editEmail} onChange={e=>setEditEmail(e.target.value)} type="email" className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
              </div>
              <div>
@@ -476,14 +476,14 @@ function ProfileViewLocal() {
                        <input required type="password" value={newPass} onChange={e=>setNewPass(e.target.value)} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white mb-2" />
                        {newPass.length > 0 && (
                           <div className="mt-2 p-3 bg-black/40 border border-white/5 rounded-sm">
-                            <div className="flex justify-between items-center text-[10px] mb-2 uppercase tracking-widest"><span className="text-gray-500">{authTrans.passStrength || 'St├ñrke:'}</span><span className={passColor.replace('bg-', 'text-')}>{passLabel}</span></div>
+                            <div className="flex justify-between items-center text-[10px] mb-2 uppercase tracking-widest"><span className="text-gray-500">{authTrans.passStrength || 'Stärke:'}</span><span className={passColor.replace('bg-', 'text-')}>{passLabel}</span></div>
                             <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden mb-2"><div className={`h-full transition-all duration-300 ${passColor}`} style={{ width: passWidth }} /></div>
                             <ul className="text-[9px] text-gray-500 grid grid-cols-2 gap-1">
-                              <li className={hasLength ? 'text-green-400' : ''}>{hasLength ? 'Γ£ô' : 'Γùï'} {authTrans.ruleLength || '8+ Zeichen'}</li>
-                              <li className={hasUpper ? 'text-green-400' : ''}>{hasUpper ? 'Γ£ô' : 'Γùï'} {authTrans.ruleUpper || 'Gro├ƒbuchstabe'}</li>
-                              <li className={hasLower ? 'text-green-400' : ''}>{hasLower ? 'Γ£ô' : 'Γùï'} {authTrans.ruleLower || 'Kleinbuchstabe'}</li>
-                              <li className={hasNum ? 'text-green-400' : ''}>{hasNum ? 'Γ£ô' : 'Γùï'} {authTrans.ruleNum || 'Zahl'}</li>
-                              <li className={hasSpec ? 'text-green-400' : ''}>{hasSpec ? 'Γ£ô' : 'Γùï'} {authTrans.ruleSpec || 'Sonderzeichen'}</li>
+                              <li className={hasLength ? 'text-green-400' : ''}>{hasLength ? '✓' : '○'} {authTrans.ruleLength || '8+ Zeichen'}</li>
+                              <li className={hasUpper ? 'text-green-400' : ''}>{hasUpper ? '✓' : '○'} {authTrans.ruleUpper || 'Großbuchstabe'}</li>
+                              <li className={hasLower ? 'text-green-400' : ''}>{hasLower ? '✓' : '○'} {authTrans.ruleLower || 'Kleinbuchstabe'}</li>
+                              <li className={hasNum ? 'text-green-400' : ''}>{hasNum ? '✓' : '○'} {authTrans.ruleNum || 'Zahl'}</li>
+                              <li className={hasSpec ? 'text-green-400' : ''}>{hasSpec ? '✓' : '○'} {authTrans.ruleSpec || 'Sonderzeichen'}</li>
                             </ul>
                           </div>
                        )}
@@ -515,7 +515,7 @@ function ProfileViewLocal() {
             <div>
               <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">{t.profile?.contactData || "Kontaktdaten"}</p>
               <p className="text-lg font-bold">{currentUser.email}</p>
-              <p className="text-gray-300 mt-1">{currentUser.phone || t.profile?.noPhone || "Keine Telefonnummer gespeichert. Bitte in settings hinzuf├╝gen."}</p>
+              <p className="text-gray-300 mt-1">{currentUser.phone || t.profile?.noPhone || "Keine Telefonnummer gespeichert. Bitte in settings hinzufügen."}</p>
             </div>
             <button onClick={() => setActiveTab('settings')} className="p-3 border border-white/20 rounded-sm hover:bg-white/5 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -544,7 +544,7 @@ function ProfileViewLocal() {
                       
                       {a.status === 'proposed' ? (
                         <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-sm">
-                          <p className="text-blue-400 text-xs font-bold mb-2">ΓÜá∩╕Å {t.profile?.newProposal || "Neuer Terminvorschlag vom Salon:"}</p>
+                          <p className="text-blue-400 text-xs font-bold mb-2">⚠️ {t.profile?.newProposal || "Neuer Terminvorschlag vom Salon:"}</p>
                           <p className="text-white text-sm mb-3">{a.proposedDate} um {a.proposedTime} Uhr</p>
                           <div className="flex gap-2">
                             <button onClick={() => updateAppointmentStatus(a.id, 'confirmed', true, undefined, a.proposedDate, a.proposedTime)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 text-xs font-bold uppercase rounded-sm">{t.profile?.acceptTime || "Zeit Akzeptieren"}</button>
@@ -819,7 +819,7 @@ function AdminView() {
       {showWalkInModal && (
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
           <div className="p-8 md:p-10 border rounded-sm shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-300 bg-[#111] border-white/20">
-            <h3 className="text-2xl font-bold mb-6 uppercase text-[#d4af37]">{t.admin?.walkIn?.title || "Walk-In Hinzuf├╝gen"}</h3>
+            <h3 className="text-2xl font-bold mb-6 uppercase text-[#d4af37]">{t.admin?.walkIn?.title || "Walk-In Hinzufügen"}</h3>
             <form onSubmit={handleSaveWalkIn} className="space-y-4">
                <div>
                  <label className="block text-xs uppercase text-gray-400 mb-2">{t.admin?.walkIn?.name || "Kundenname"}</label>
@@ -852,10 +852,10 @@ function AdminView() {
       <div className="grid grid-cols-3 gap-3 md:gap-4 mb-8">
          <div className="p-4 md:p-5 border border-white/10 rounded-sm bg-black/40">
             <p className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-widest">{t.admin?.analytics?.revenue || 'Umsatz Heute'}</p>
-            <p className={`text-xl md:text-2xl font-bold mt-1 ${primaryColor}`}>{todayRevenue.toFixed(2).replace('.', ',')} Γé¼</p>
+            <p className={`text-xl md:text-2xl font-bold mt-1 ${primaryColor}`}>{todayRevenue.toFixed(2).replace('.', ',')} €</p>
          </div>
          <div className="p-4 md:p-5 border border-white/10 rounded-sm bg-black/40">
-            <p className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-widest">{t.admin?.analytics?.completed || 'Best├ñtigt (Heute)'}</p>
+            <p className="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-widest">{t.admin?.analytics?.completed || 'Bestätigt (Heute)'}</p>
             <p className="text-xl md:text-2xl font-bold mt-1 text-white">{completedToday}</p>
          </div>
          <div className="p-4 md:p-5 border border-white/10 rounded-sm bg-black/40">
@@ -887,10 +887,10 @@ function AdminView() {
           <h3 className="text-lg font-bold mb-6">{t.nav?.gallery || 'Galerie'}</h3>
           
           <div className="mb-8">
-             <label className="block text-xs uppercase text-gray-400 mb-2">Neue Bilder hinzuf├╝gen (Mehrfachauswahl m├╢glich)</label>
+             <label className="block text-xs uppercase text-gray-400 mb-2">Neue Bilder hinzufügen (Mehrfachauswahl möglich)</label>
              <div className="flex items-center gap-4 bg-black border border-white/20 p-2 rounded-sm max-w-md">
                 <input type="file" accept="image/*" multiple disabled={isUploadingGallery} onChange={e => { handleGalleryUpload(e.target.files); e.target.value = ''; }} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:cursor-pointer disabled:opacity-50" />
-                {isUploadingGallery && <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">L├ñdt...</span>}
+                {isUploadingGallery && <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span>}
              </div>
           </div>
 
@@ -906,7 +906,7 @@ function AdminView() {
                         <input type="file" accept="image/*" className="hidden" onChange={(e) => handleReplaceGalleryImage(idx, e.target.files?.[0])} />
                       </label>
                       <button onClick={() => removeGalleryImage(img)} className="bg-red-600/80 hover:bg-red-600 text-white text-[10px] uppercase font-bold px-4 py-2 rounded-sm transition-colors w-24">
-                        L├╢schen
+                        Löschen
                       </button>
                    </div>
                 </div>
@@ -949,7 +949,7 @@ function AdminView() {
                        <p className="font-bold text-lg text-[#d4af37]">{s.name}</p>
                        <p className="text-xs text-gray-400 mt-1">{s.services.length > 0 ? s.services.join(', ') : 'Alle Leistungen'}</p>
                      </div>
-                     <button onClick={() => deleteStylist(s.id)} className="text-red-400 text-xs uppercase font-bold hover:underline">{t.admin?.team?.deleteBtn || 'L├╢schen'}</button>
+                     <button onClick={() => deleteStylist(s.id)} className="text-red-400 text-xs uppercase font-bold hover:underline">{t.admin?.team?.deleteBtn || 'Löschen'}</button>
                    </div>
                 ))}
              </div>
@@ -962,7 +962,7 @@ function AdminView() {
               <h3 className="text-lg font-bold mb-4">{t.admin?.settings?.title || 'Allgemeine Einstellungen'}</h3>
               
               <div className="mb-8">
-                <label className="block text-xs uppercase text-gray-400 mb-2">{t.admin?.settings?.walkin || 'Live-Wartezeit f├╝r Walk-ins'}</label>
+                <label className="block text-xs uppercase text-gray-400 mb-2">{t.admin?.settings?.walkin || 'Live-Wartezeit für Walk-ins'}</label>
                 <div className="flex gap-2">
                   <input value={walkinWaitTimeInput} onChange={e=>setWalkinWaitTimeInput(e.target.value)} type="text" placeholder={t.admin?.settings?.walkinPlaceholder || 'z.B. ca. 30 Minuten, Ausgebucht...'} className="flex-1 bg-black border border-white/20 p-3 rounded-sm text-white text-sm" />
                   <button onClick={() => updateGeneralSettings({ walkinWaitTime: walkinWaitTimeInput })} className="px-6 py-3 font-bold uppercase text-xs rounded-sm bg-[#d4af37] text-black hover:bg-white transition-colors">{t.admin?.settings?.saveWalkin || 'Update'}</button>
@@ -999,14 +999,14 @@ function AdminView() {
                           <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.heroImg || 'Hero Hintergrundbild'}</label>
                           <div className="flex items-center gap-4 bg-black border border-white/20 p-2 rounded-sm">
                               <input type="file" accept="image/*" disabled={isUploadingHero} onChange={e => handleSiteAssetUpload(e.target.files?.[0], 'hero')} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:cursor-pointer disabled:opacity-50" />
-                              {isUploadingHero ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">L├ñdt...</span> : heroImageInput && <img src={heroImageInput} alt="Hero Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
+                              {isUploadingHero ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span> : heroImageInput && <img src={heroImageInput} alt="Hero Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
                           </div>
                       </div>
                       <div>
                           <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.aboutImg || 'Profilbild'}</label>
                           <div className="flex items-center gap-4 bg-black border border-white/20 p-2 rounded-sm">
                               <input type="file" accept="image/*" disabled={isUploadingAbout} onChange={e => handleSiteAssetUpload(e.target.files?.[0], 'about')} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:cursor-pointer disabled:opacity-50" />
-                              {isUploadingAbout ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">L├ñdt...</span> : aboutImageInput && <img src={aboutImageInput} alt="About Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
+                              {isUploadingAbout ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span> : aboutImageInput && <img src={aboutImageInput} alt="About Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
                           </div>
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">
@@ -1046,7 +1046,7 @@ function AdminView() {
                 <div key={w.id} className="p-5 border border-white/10 rounded-sm bg-black/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <p className="font-bold text-[#d4af37] text-lg">{w.name} <span className="text-sm text-gray-400 font-normal">({w.phone})</span></p>
-                    <p className="text-sm text-white mt-1">Wunschdatum: {w.date} ΓÇó Stylist: {w.stylist}</p>
+                    <p className="text-sm text-white mt-1">Wunschdatum: {w.date} • Stylist: {w.stylist}</p>
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Eingetragen am: {new Date(w.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
@@ -1071,7 +1071,7 @@ function AdminView() {
                    <div className="flex justify-between items-start mb-4">
                       <div>
                         <p className="font-bold text-lg text-[#d4af37]">{u.name}</p>
-                        <p className="text-sm text-gray-400">{u.email} ΓÇó {u.phone || 'Keine Nummer'}</p>
+                        <p className="text-sm text-gray-400">{u.email} • {u.phone || 'Keine Nummer'}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] uppercase tracking-widest text-gray-500">Treuepunkte</p>
@@ -1105,7 +1105,7 @@ function AdminView() {
            </div>
 
            <div className="flex justify-between items-center mb-8">
-              <button onClick={() => shiftDate(-1)} className="px-4 py-2 border border-white/20 hover:bg-white/5 rounded-sm">&larr; {t.admin?.calendar?.back || 'Zur├╝ck'}</button>
+              <button onClick={() => shiftDate(-1)} className="px-4 py-2 border border-white/20 hover:bg-white/5 rounded-sm">&larr; {t.admin?.calendar?.back || 'Zurück'}</button>
               <input type="date" value={calDate} onChange={e=>setCalDate(e.target.value)} className="bg-black border border-white/20 p-2 rounded-sm text-center font-bold" />
               <button onClick={() => shiftDate(1)} className="px-4 py-2 border border-white/20 hover:bg-white/5 rounded-sm">{t.admin?.calendar?.next || 'Weiter'} &rarr;</button>
            </div>
@@ -1147,10 +1147,10 @@ function AdminView() {
                               <div key={a.id} className={`p-4 border rounded-sm ${a.status === 'confirmed' ? 'border-green-500/30 bg-green-500/10' : 'border-yellow-500/30 bg-yellow-500/10'}`}>
                                  <p className="font-bold">
                                    {a.name} <span className="text-xs font-normal text-gray-400 ml-2">({a.phone})</span>
-                                   {a.isGroup && <span className="ml-2 text-[10px] uppercase bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm">{t.admin?.requests?.groupBadge || "≡ƒæÑ Gruppe"}</span>}
+                                   {a.isGroup && <span className="ml-2 text-[10px] uppercase bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm">{t.admin?.requests?.groupBadge || "👥 Gruppe"}</span>}
                                  </p>
-                                 <p className="text-sm text-gray-300 mt-1">{sList} ΓÇö {a.totalDurationMins || 60} {t.services?.min || 'Min'}</p>
-                                 <span className="text-[10px] uppercase font-bold text-gray-500 mt-2 block">{t.booking?.stylist || 'Stylist'}: {a.stylist} ΓÇó {t.admin?.requests?.status || 'Status'}: {a.status === 'confirmed' ? (t.profile?.completed || 'Abgeschlossen') : a.status === 'pending' ? (t.profile?.pending || 'Ausstehend') : a.status === 'cancelled' ? (t.profile?.cancel || 'Stornieren') : a.status}</span>
+                                 <p className="text-sm text-gray-300 mt-1">{sList} — {a.totalDurationMins || 60} {t.services?.min || 'Min'}</p>
+                                 <span className="text-[10px] uppercase font-bold text-gray-500 mt-2 block">{t.booking?.stylist || 'Stylist'}: {a.stylist} • {t.admin?.requests?.status || 'Status'}: {a.status === 'confirmed' ? (t.profile?.completed || 'Abgeschlossen') : a.status === 'pending' ? (t.profile?.pending || 'Ausstehend') : a.status === 'cancelled' ? (t.profile?.cancel || 'Stornieren') : a.status}</span>
                               </div>
                            );
                         })}
@@ -1179,7 +1179,7 @@ function AdminView() {
                       <div>
                         <p className="font-bold text-lg">
                           {a.name} <span className="text-sm font-normal text-gray-400">({a.phone})</span>
-                          {a.isGroup && <span className="ml-2 text-[10px] uppercase bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm">{t.admin?.requests?.groupBadge || "≡ƒæÑ Gruppe"}</span>}
+                          {a.isGroup && <span className="ml-2 text-[10px] uppercase bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm">{t.admin?.requests?.groupBadge || "👥 Gruppe"}</span>}
                         </p>
                         <p className="text-sm text-gray-300 my-1"><span className="text-red-400 font-bold">{a.date} @ {a.time}</span> ({a.totalDurationMins || 60} {t.services?.min || 'Min'})</p>
                         <p className="text-sm text-gray-400">{t.admin?.requests?.services || 'Leistungen:'} {sList}</p>
@@ -1189,14 +1189,14 @@ function AdminView() {
                             <p className="text-xs uppercase font-bold text-gray-500 mb-2">Weitere Personen ({a.guests.length})</p>
                             {a.guests.map((g: any, i: number) => (
                               <div key={i} className="text-sm text-gray-300 mb-2 last:mb-0">
-                                <span className="font-bold text-white">{g.name}</span> (Alter: {g.age}) {g.phone && `ΓÇó Tel: ${g.phone}`} <br/>
-                                <span className="text-xs text-gray-400">Stylist: {g.stylist} ΓÇó Service: {g.service}</span>
+                                <span className="font-bold text-white">{g.name}</span> (Alter: {g.age}) {g.phone && `• Tel: ${g.phone}`} <br/>
+                                <span className="text-xs text-gray-400">Stylist: {g.stylist} • Service: {g.service}</span>
                               </div>
                             ))}
                           </div>
                         )}
 
-                        {a.specialRequests && <p className="text-sm text-yellow-400 mt-2"><strong>W├╝nsche:</strong> {a.specialRequests}</p>}
+                        {a.specialRequests && <p className="text-sm text-yellow-400 mt-2"><strong>Wünsche:</strong> {a.specialRequests}</p>}
                         {a.referenceImage && (
                           <div className="mt-3">
                              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">{t.admin?.requests?.refImage || 'Referenzbild:'}</p>
@@ -1205,7 +1205,7 @@ function AdminView() {
                         )}
                       </div>
                       <div className="flex flex-col gap-2">
-                        <button onClick={() => updateAppointmentStatus(a.id, 'confirmed', a.sendsms)} className="bg-green-600 text-white px-4 py-2 text-xs font-bold uppercase rounded-sm hover:bg-green-500">{t.admin?.requests?.confirmBtn || 'Best├ñtigen'}</button>
+                        <button onClick={() => updateAppointmentStatus(a.id, 'confirmed', a.sendsms)} className="bg-green-600 text-white px-4 py-2 text-xs font-bold uppercase rounded-sm hover:bg-green-500">{t.admin?.requests?.confirmBtn || 'Bestätigen'}</button>
                         <button onClick={() => updateAppointmentStatus(a.id, 'cancelled', false)} className="border border-red-600 text-red-400 px-4 py-2 text-xs font-bold uppercase rounded-sm hover:bg-red-900/30">{t.admin?.requests?.rejectBtn || 'Ablehnen'}</button>
                       </div>
                     </div>
@@ -1227,7 +1227,7 @@ function AdminView() {
 
           {/* ALLE ANDEREN TERMINE */}
           <div className={`p-4 md:p-6 border rounded-sm ${bgBorder}`}>
-            <h3 className="text-lg md:text-xl font-bold mb-6">{t.admin?.requests?.confirmed || 'Best├ñtigt & Historie'}</h3>
+            <h3 className="text-lg md:text-xl font-bold mb-6">{t.admin?.requests?.confirmed || 'Bestätigt & Historie'}</h3>
             <div className="space-y-4">
               {otherAppts.map((a: any) => {
                 const sList = Array.isArray(a.services) ? a.services.join(', ') : (a as any).service || 'Leistung';
@@ -1237,9 +1237,9 @@ function AdminView() {
                        <div>
                          <p className="font-bold text-lg">
                            {a.name} <span className="text-sm font-normal text-gray-400">({a.phone})</span>
-                           {a.isGroup && <span className="ml-2 text-[10px] uppercase bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm">{t.admin?.requests?.groupBadge || "≡ƒæÑ Gruppe"}</span>}
+                           {a.isGroup && <span className="ml-2 text-[10px] uppercase bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-sm">{t.admin?.requests?.groupBadge || "👥 Gruppe"}</span>}
                          </p>
-                         <p className="text-sm text-gray-300">{sList} ΓÇö {a.date} @ {a.time}</p>
+                         <p className="text-sm text-gray-300">{sList} — {a.date} @ {a.time}</p>
                          <p className={`text-xs mt-2 font-bold uppercase ${a.status==='confirmed'?'text-green-400':a.status==='cancelled'?'text-red-400':'text-blue-400'}`}>{t.admin?.requests?.status || 'Status'}: {a.status === 'confirmed' ? (t.profile?.completed || 'Abgeschlossen') : a.status === 'pending' ? (t.profile?.pending || 'Ausstehend') : a.status === 'cancelled' ? (t.profile?.cancel || 'Stornieren') : a.status}</p>
                          
                          {a.guests && a.guests.length > 0 && (
@@ -1247,14 +1247,14 @@ function AdminView() {
                             <p className="text-xs uppercase font-bold text-gray-500 mb-2">Weitere Personen ({a.guests.length})</p>
                             {a.guests.map((g: any, i: number) => (
                               <div key={i} className="text-sm text-gray-300 mb-2 last:mb-0">
-                                <span className="font-bold text-white">{g.name}</span> (Alter: {g.age}) {g.phone && `ΓÇó Tel: ${g.phone}`} <br/>
-                                <span className="text-xs text-gray-400">Stylist: {g.stylist} ΓÇó Service: {g.service}</span>
+                                <span className="font-bold text-white">{g.name}</span> (Alter: {g.age}) {g.phone && `• Tel: ${g.phone}`} <br/>
+                                <span className="text-xs text-gray-400">Stylist: {g.stylist} • Service: {g.service}</span>
                               </div>
                             ))}
                           </div>
                         )}
 
-                         {a.specialRequests && <p className="text-sm text-yellow-400 mt-2"><strong>W├╝nsche:</strong> {a.specialRequests}</p>}
+                         {a.specialRequests && <p className="text-sm text-yellow-400 mt-2"><strong>Wünsche:</strong> {a.specialRequests}</p>}
                        </div>
                        {a.referenceImage && <img src={a.referenceImage} alt="Ref" className="h-16 w-16 object-cover rounded-sm border border-white/10" />}
                      </div>
@@ -1265,7 +1265,7 @@ function AdminView() {
                           <input type="text" value={editingNotes[a.id] !== undefined ? editingNotes[a.id] : (a.notes || '')} onChange={(e) => setEditingNotes({...editingNotes, [a.id]: e.target.value})} placeholder={t.admin?.requests?.notesPlaceholder || 'Interne Notizen (z.B. Skin fade #1...)'} className="w-full md:w-auto flex-1 bg-black border border-white/20 p-3 rounded-sm text-sm text-white" />
                           <button onClick={() => updateAppointmentStatus(a.id, 'confirmed', false, editingNotes[a.id])} className="w-full md:w-auto px-6 py-3 font-bold uppercase text-xs rounded-sm bg-[#d4af37] text-black">{t.admin?.requests?.saveNote || 'Notiz speichern'}</button>
                           
-                          <button onClick={() => resendConfirmation(a.id)} className="w-full md:w-auto px-6 py-3 font-bold uppercase text-xs rounded-sm bg-blue-600/20 text-blue-400 border border-blue-600 hover:bg-blue-600 hover:text-white transition-colors">{t.admin?.requests?.resendBtn || 'Best├ñtigung neu senden'}</button>
+                          <button onClick={() => resendConfirmation(a.id)} className="w-full md:w-auto px-6 py-3 font-bold uppercase text-xs rounded-sm bg-blue-600/20 text-blue-400 border border-blue-600 hover:bg-blue-600 hover:text-white transition-colors">{t.admin?.requests?.resendBtn || 'Bestätigung neu senden'}</button>
 
                           <button onClick={() => updateAppointmentStatus(a.id, 'cancelled', false)} className="w-full md:w-auto px-6 py-3 font-bold uppercase text-xs rounded-sm bg-red-600/20 text-red-400 border border-red-600 hover:bg-red-600 hover:text-white transition-colors">{t.admin?.requests?.cancelBtn || 'Stornieren'}</button>
                         </div>
@@ -1289,14 +1289,14 @@ function AdminView() {
       {tab === 'services' && (
         <div className="grid lg:grid-cols-2 gap-8">
           <div className={`p-6 border rounded-sm ${bgBorder}`}>
-            <h3 className="text-lg font-bold mb-4">{t.admin?.services?.addTitle || 'Leistung hinzuf├╝gen'}</h3>
+            <h3 className="text-lg font-bold mb-4">{t.admin?.services?.addTitle || 'Leistung hinzufügen'}</h3>
             <form onSubmit={handleAddServiceSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.services?.nameDe || 'Name der Leistung (Deutsch)'}</label>
                 <input required value={serviceNameDe} onChange={e => setServiceNameDe(e.target.value)} type="text" placeholder="z.B. Herrenschnitt & Bart" className="w-full bg-black border border-white/20 p-4 rounded-sm text-white text-sm" />
               </div>
               <button type="button" onClick={handleTranslateService} disabled={isTranslatingService || !serviceNameDe} className="w-full py-2 bg-blue-500/20 text-blue-400 border border-blue-500/40 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-blue-500 hover:text-white transition-colors disabled:opacity-50">
-                {isTranslatingService ? (t.admin?.services?.translating || "├£bersetzen...") : (t.admin?.services?.translateBtn || "Γ£¿ KI: Auf Englisch ├╝bersetzen")}
+                {isTranslatingService ? (t.admin?.services?.translating || "Übersetzen...") : (t.admin?.services?.translateBtn || "✨ KI: Auf Englisch übersetzen")}
               </button>
               <div>
                 <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.services?.nameEn || 'Name (Englische Vorschau)'}</label>
@@ -1304,8 +1304,8 @@ function AdminView() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.services?.price || 'Preis (Γé¼)'}</label>
-                  <input required value={servicePrice} onChange={e => setServicePrice(e.target.value)} type="text" placeholder="35 Γé¼" className="w-full bg-black border border-white/20 p-4 rounded-sm text-white text-sm" />
+                  <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.services?.price || 'Preis (€)'}</label>
+                  <input required value={servicePrice} onChange={e => setServicePrice(e.target.value)} type="text" placeholder="35 €" className="w-full bg-black border border-white/20 p-4 rounded-sm text-white text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.services?.duration || 'Dauer (Min)'}</label>
@@ -1320,11 +1320,11 @@ function AdminView() {
               <div key={s.id} className={`p-5 flex justify-between items-center border rounded-sm ${bgBorder}`}>
                 <div>
                   <p className="font-bold">{s.name}</p>
-                  <p className="text-xs text-gray-400 mt-1">ΓÅ▒ {s.durationMins || 60} {t.services?.min || 'Minuten'}</p>
+                  <p className="text-xs text-gray-400 mt-1">⏱ {s.durationMins || 60} {t.services?.min || 'Minuten'}</p>
                 </div>
                 <div className="text-right">
                   <p className={primaryColor}>{s.price}</p>
-                  <button onClick={() => deleteService(s.id)} className="text-red-400 text-xs uppercase font-bold mt-2 hover:underline">{t.admin?.services?.deleteBtn || 'L├╢schen'}</button>
+                  <button onClick={() => deleteService(s.id)} className="text-red-400 text-xs uppercase font-bold mt-2 hover:underline">{t.admin?.services?.deleteBtn || 'Löschen'}</button>
                 </div>
               </div>
             ))}
@@ -1335,7 +1335,7 @@ function AdminView() {
       {tab === 'products' && (
         <div className="grid lg:grid-cols-2 gap-8">
           <div className={`p-6 border rounded-sm ${bgBorder}`}>
-            <h3 className="text-lg md:text-xl font-bold mb-4">{t.admin?.products?.addTitle || 'Produkt hinzuf├╝gen'}</h3>
+            <h3 className="text-lg md:text-xl font-bold mb-4">{t.admin?.products?.addTitle || 'Produkt hinzufügen'}</h3>
             <form onSubmit={handleAddProductSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.products?.nameDe || 'Produktname (Deutsch)'}</label>
@@ -1343,10 +1343,10 @@ function AdminView() {
               </div>
               <div>
                 <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.products?.descDe || 'Beschreibung (Deutsch)'}</label>
-                <textarea required value={productDescDe} onChange={e => setProductDescDe(e.target.value)} rows={2} placeholder="z.B. Starker Halt f├╝r den ganzen Tag" className="w-full bg-black border border-white/20 p-3 rounded-sm outline-none text-sm text-white" />
+                <textarea required value={productDescDe} onChange={e => setProductDescDe(e.target.value)} rows={2} placeholder="z.B. Starker Halt für den ganzen Tag" className="w-full bg-black border border-white/20 p-3 rounded-sm outline-none text-sm text-white" />
               </div>
               <button type="button" onClick={handleTranslateProduct} disabled={isTranslatingProduct || (!productNameDe && !productDescDe)} className="w-full py-2 bg-blue-500/20 text-blue-400 border border-blue-500/40 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-blue-500 hover:text-white transition-colors disabled:opacity-50">
-                {isTranslatingProduct ? (t.admin?.services?.translating || "├£bersetzen...") : (t.admin?.services?.translateBtn || "Γ£¿ KI: Auf Englisch ├╝bersetzen")}
+                {isTranslatingProduct ? (t.admin?.services?.translating || "Übersetzen...") : (t.admin?.services?.translateBtn || "✨ KI: Auf Englisch übersetzen")}
               </button>
               <div>
                 <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.products?.nameEn || 'Name (Englische Vorschau)'}</label>
@@ -1358,8 +1358,8 @@ function AdminView() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.products?.price || 'Preis (Γé¼)'}</label>
-                  <input required value={productPrice} onChange={e => setProductPrice(e.target.value)} type="text" placeholder="19,90 Γé¼" className="w-full bg-black border border-white/20 p-3 rounded-sm outline-none text-sm text-white" />
+                  <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.products?.price || 'Preis (€)'}</label>
+                  <input required value={productPrice} onChange={e => setProductPrice(e.target.value)} type="text" placeholder="19,90 €" className="w-full bg-black border border-white/20 p-3 rounded-sm outline-none text-sm text-white" />
                 </div>
                 <div>
                   <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.products?.initialStock || 'Anfangsbestand'}</label>
@@ -1389,7 +1389,7 @@ function AdminView() {
                     <span className="text-xs font-bold w-6 text-center">{p.stockCount || 0}</span>
                     <button onClick={() => updateProductStock(p.id, (p.stockCount || 0) + 1)} className="w-6 h-6 flex items-center justify-center border border-white/10 hover:bg-white/10 rounded-sm">+</button>
                   </div>
-                  <button onClick={() => deleteProduct(p.id)} className="text-red-400 text-[10px] uppercase tracking-widest font-bold hover:underline">{t.admin?.services?.deleteBtn || 'L├╢schen'}</button>
+                  <button onClick={() => deleteProduct(p.id)} className="text-red-400 text-[10px] uppercase tracking-widest font-bold hover:underline">{t.admin?.services?.deleteBtn || 'Löschen'}</button>
                 </div>
               </div>
             ))}
@@ -1463,7 +1463,7 @@ function BookingView() {
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
-      addNotification('Datei zu gro├ƒ. Maximum 20MB', 'error');
+      addNotification('Datei zu groß. Maximum 20MB', 'error');
       return;
     }
     
@@ -1590,7 +1590,7 @@ function BookingView() {
                          <div key={s.id} onClick={() => handleToggleService(s)} className={`cursor-pointer border p-3 flex justify-between items-center rounded-sm transition-colors ${isSelected ? 'border-[#d4af37] bg-[#d4af37]/10' : 'border-white/10 hover:border-white/30'}`}>
                             <div>
                                <p className={`font-bold text-sm ${isSelected ? 'text-[#d4af37]' : 'text-white'}`}>{s.name}</p>
-                               <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">ΓÅ▒ {s.durationMins || 60} {t.services?.min || 'Minuten'}</p>
+                               <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">⏱ {s.durationMins || 60} {t.services?.min || 'Minuten'}</p>
                             </div>
                             <p className="text-sm font-bold">{s.price}</p>
                          </div>
@@ -1617,7 +1617,7 @@ function BookingView() {
                           onClick={clearImageUpload}
                           className="absolute top-2 right-2 p-1 bg-red-500/80 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          Γ£ò
+                          ✕
                         </button>
                       </div>
                     ) : (
@@ -1634,7 +1634,7 @@ function BookingView() {
               <div className="pt-4 border-t border-gray-800">
                  {guests.map((g, index) => (
                     <div key={g.id} className="p-4 border border-white/10 bg-black/40 rounded-sm space-y-4 relative mb-4 animate-in fade-in">
-                       <button type="button" onClick={() => removeGuest(g.id)} className="absolute top-2 right-2 text-red-500 hover:text-red-400 text-xs font-bold px-2 py-1">Γ£ò</button>
+                       <button type="button" onClick={() => removeGuest(g.id)} className="absolute top-2 right-2 text-red-500 hover:text-red-400 text-xs font-bold px-2 py-1">✕</button>
                        <p className="text-xs font-bold text-[#d4af37] uppercase tracking-widest">Person {index + 2}</p>
                        
                        <div className="grid grid-cols-2 gap-4">
@@ -1650,7 +1650,7 @@ function BookingView() {
 
                        {parseInt(g.age) >= 14 && (
                           <div>
-                             <label className="block text-[10px] uppercase text-gray-500 mb-1">{t.booking?.guestPhone || "Telefon (f├╝r ab 14 J.)"}</label>
+                             <label className="block text-[10px] uppercase text-gray-500 mb-1">{t.booking?.guestPhone || "Telefon (für ab 14 J.)"}</label>
                              <input placeholder="Optional" value={g.phone} onChange={e => updateGuest(g.id, 'phone', e.target.value)} className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-xs" />
                           </div>
                        )}
@@ -1659,7 +1659,7 @@ function BookingView() {
                            <div>
                              <label className="block text-[10px] uppercase text-gray-500 mb-1">{t.booking.service}</label>
                              <select value={g.service} onChange={e => updateGuest(g.id, 'service', e.target.value)} className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-xs">
-                                <option value="" disabled>Service w├ñhlen</option>
+                                <option value="" disabled>Service wählen</option>
                                 {translatedServices.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                              </select>
                            </div>
@@ -1674,12 +1674,12 @@ function BookingView() {
                  ))}
                  
                  <button type="button" onClick={addGuest} className="text-xs text-[#d4af37] font-bold uppercase hover:text-white transition-colors border border-[#d4af37]/30 border-dashed w-full py-3 rounded-sm bg-[#d4af37]/5">
-                   {t.booking?.addGuest || "+ Person / Kind hinzuf├╝gen"}
+                   {t.booking?.addGuest || "+ Person / Kind hinzufügen"}
                  </button>
               </div>
 
               <div>
-                <label className="block text-xs uppercase text-gray-400 mb-2">{t.booking?.requestsLabel || "Besondere W├╝nsche / Notizen (Optional)"}</label>
+                <label className="block text-xs uppercase text-gray-400 mb-2">{t.booking?.requestsLabel || "Besondere Wünsche / Notizen (Optional)"}</label>
                 <textarea value={specialRequests} onChange={e=>setSpecialRequests(e.target.value)} rows={2} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
               </div>
 
@@ -1693,8 +1693,8 @@ function BookingView() {
                       
                       {guests.length > 0 ? (
                         <div className="p-4 border border-blue-500/30 bg-blue-500/10 rounded-sm animate-in fade-in">
-                          <p className="text-sm font-bold text-blue-400 mb-2">≡ƒæÑ Gruppenanfrage</p>
-                          <p className="text-xs text-gray-300 mb-4">{t.booking?.groupNotice || "Gruppenbuchungen werden manuell gepr├╝ft. Sende uns deine Wunschanfrage!"}</p>
+                          <p className="text-sm font-bold text-blue-400 mb-2">👥 Gruppenanfrage</p>
+                          <p className="text-xs text-gray-300 mb-4">{t.booking?.groupNotice || "Gruppenbuchungen werden manuell geprüft. Sende uns deine Wunschanfrage!"}</p>
                           <label className="block text-[10px] uppercase text-gray-400 mb-1">{t.booking?.prefTime || "Wunschuhrzeit"}</label>
                           <input required type="time" value={preferredTime} onChange={e => setPreferredTime(e.target.value)} className="w-full bg-black border border-white/20 p-3 rounded-sm text-white" />
                         </div>
@@ -1714,7 +1714,7 @@ function BookingView() {
                         <div className="p-4 border border-white/10 bg-black/40 rounded-sm text-center">
                           <p className="text-xs text-gray-400 mb-2">{t.booking?.waitlistLabel || "Kein passender Termin?"}</p>
                           <button type="button" onClick={async () => {
-                            if(!currentUser || !bookingName || !phoneInput) return addNotification("Bitte f├╝llen Sie Name und Telefon aus.", "error");
+                            if(!currentUser || !bookingName || !phoneInput) return addNotification("Bitte füllen Sie Name und Telefon aus.", "error");
                             const fullPhone = `${countryCode}${phoneInput}`.replace(/\s+/g, '');
                             await addToWaitlist({ userId: currentUser.id, name: bookingName, phone: fullPhone, date: bookingDate, stylist });
                           }} className="w-full px-4 py-3 border border-[#d4af37] text-[#d4af37] text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-[#d4af37] hover:text-black transition-colors">{t.booking?.joinWaitlistBtn || "Warteliste beitreten"}</button>
@@ -1723,7 +1723,7 @@ function BookingView() {
 
                     </div>
                   ) : (
-                    <div className="flex-1 border border-dashed border-white/10 flex items-center justify-center p-4 rounded-sm"><p className="text-xs text-gray-500">{t.booking?.pickDateFirst || "W├ñhlen Sie zuerst ein Datum."}</p></div>
+                    <div className="flex-1 border border-dashed border-white/10 flex items-center justify-center p-4 rounded-sm"><p className="text-xs text-gray-500">{t.booking?.pickDateFirst || "Wählen Sie zuerst ein Datum."}</p></div>
                   )}
                 </div>
               </div>
@@ -1838,7 +1838,7 @@ function GalleryView({ images, title }: { images: string[]; title: string }) {
             onClick={() => setOpenIndex(idx)}
             className="relative aspect-3/4 overflow-hidden rounded-sm group animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both focus:outline-hidden focus-visible:ring-2 focus-visible:ring-[#d4af37] cursor-zoom-in"
             style={{ animationDelay: `${idx * 80}ms` }}
-            aria-label={`Bild ${idx + 1} von ${images.length} ├╢ffnen`}
+            aria-label={`Bild ${idx + 1} von ${images.length} öffnen`}
           >
             <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-500 z-10" />
             <img
@@ -1864,9 +1864,9 @@ function GalleryView({ images, title }: { images: string[]; title: string }) {
           <button
             onClick={() => setOpenIndex(null)}
             className="absolute top-4 right-4 md:top-8 md:right-8 text-white/70 hover:text-white text-3xl w-11 h-11 flex items-center justify-center transition-colors z-10"
-            aria-label="Schlie├ƒen"
+            aria-label="Schließen"
           >
-            Γ£ò
+            ✕
           </button>
 
           <span className="absolute top-4 left-4 md:top-8 md:left-8 text-white/60 text-xs md:text-sm uppercase tracking-widest z-10">
@@ -1879,7 +1879,7 @@ function GalleryView({ images, title }: { images: string[]; title: string }) {
               className="absolute left-1 md:left-6 top-1/2 -translate-y-1/2 text-white/70 hover:text-[#d4af37] w-12 h-12 md:w-14 md:h-14 flex items-center justify-center text-4xl md:text-5xl transition-colors z-10"
               aria-label="Vorheriges Bild"
             >
-              ΓÇ╣
+              ‹
             </button>
           )}
 
@@ -1894,9 +1894,9 @@ function GalleryView({ images, title }: { images: string[]; title: string }) {
             <button
               onClick={(e) => { e.stopPropagation(); showNext(); }}
               className="absolute right-1 md:right-6 top-1/2 -translate-y-1/2 text-white/70 hover:text-[#d4af37] w-12 h-12 md:w-14 md:h-14 flex items-center justify-center text-4xl md:text-5xl transition-colors z-10"
-              aria-label="N├ñchstes Bild"
+              aria-label="Nächstes Bild"
             >
-              ΓÇ║
+              ›
             </button>
           )}
         </div>
@@ -1977,7 +1977,7 @@ function MainContent() {
               {/* DESKTOP HOURS BOX - PINNED TO RIGHT EDGE TO PREVENT OVERLAP */}
               <div className="hidden lg:flex absolute right-4 xl:right-12 top-[60%] xl:top-[65%] -translate-y-1/2 z-30 p-5 rounded-2xl bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#d4af37]/40 shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex-col items-center w-60 animate-in fade-in slide-in-from-right-8 duration-1000 delay-500">
                   <h4 className="font-bold text-[#d4af37] text-xs uppercase tracking-[0.2em] mb-4 text-center">
-                      {t.contact?.hoursLabel || '├ûffnungszeiten'}
+                      {t.contact?.hoursLabel || 'Öffnungszeiten'}
                   </h4>
                   <div className="flex flex-col gap-2 text-sm text-left w-full">
                       {t.contact?.hours?.map((h: any, i: number) => (
@@ -2024,7 +2024,7 @@ function MainContent() {
                 {/* MOBILE HOURS BOX (Hidden on lg screens) */}
                 <div className="lg:hidden mx-auto mb-10 p-4 md:p-5 rounded-2xl bg-[#0a0a0a]/70 backdrop-blur-md border border-[#d4af37]/30 shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex flex-col items-center w-[90%] sm:max-w-70">
                   <h4 className="font-bold text-[#d4af37] text-[10px] md:text-xs uppercase tracking-[0.2em] mb-3">
-                    {t.contact?.hoursLabel || '├ûffnungszeiten'}
+                    {t.contact?.hoursLabel || 'Öffnungszeiten'}
                   </h4>
                   <div className="flex flex-col gap-1.5 text-xs sm:text-sm text-left w-full max-w-70">
                     {t.contact?.hours?.map((h: any, i: number) => (
@@ -2092,7 +2092,7 @@ function MainContent() {
                       <svg className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
                       <div className="text-left flex flex-col">
                         <span className="font-extrabold text-[15px] sm:text-lg md:text-xl uppercase leading-tight tracking-tight">{t.hero.btns?.call?.title || 'JETZT ANRUFEN'}</span>
-                        <span className="text-[11px] sm:text-xs md:text-sm font-normal text-gray-300">{t.hero.btns?.call?.sub || 'Wir sind f├╝r dich da'}</span>
+                        <span className="text-[11px] sm:text-xs md:text-sm font-normal text-gray-300">{t.hero.btns?.call?.sub || 'Wir sind für dich da'}</span>
                       </div>
                     </div>
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 stroke-[2.5] text-gray-400 mr-1 group-hover:translate-x-1 group-hover:text-white transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -2103,7 +2103,7 @@ function MainContent() {
                 {/* REVIEWS INTEGRATED INTO HERO */}
                 <div className="flex flex-col items-center justify-center pt-6 md:pt-8 border-t border-white/10 max-w-2xl mx-auto w-full px-4">
                    <div className="flex justify-center mb-1.5 md:mb-2 gap-1">
-                     {[1,2,3,4,5].map(star => <span key={star} className="text-[#d4af37] text-lg md:text-2xl drop-shadow-md">Γÿà</span>)}
+                     {[1,2,3,4,5].map(star => <span key={star} className="text-[#d4af37] text-lg md:text-2xl drop-shadow-md">★</span>)}
                    </div>
                    <p className="text-white text-xs sm:text-sm md:text-base font-medium tracking-wide mb-1 md:mb-1.5">{t.reviews?.title || 'Kundenbewertungen'}</p>
                    <a href="https://www.google.com/maps/search/?api=1&query=REBO+SALON+Manggasse+6+Schweinfurt" target="_blank" rel="noopener noreferrer" className="text-gray-400 text-[10px] sm:text-xs md:text-sm hover:text-white transition-colors underline decoration-white/30 underline-offset-4 font-light">
@@ -2141,9 +2141,9 @@ function MainContent() {
             <section className="bg-linear-to-b from-[#0f0f0f] to-[#161616] border-y border-white/5 py-16 md:py-20 px-4 md:px-6 text-center">
                <div className="max-w-2xl mx-auto">
                  <h2 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-[#d4af37] mb-4 md:mb-6">{t.walkinBlock?.title || 'Mit & ohne Termin'}</h2>
-                 <p className="text-base sm:text-lg md:text-xl text-white font-medium mb-3 md:mb-4">{t.walkinBlock?.text1 || 'Du m├╢chtest spontan zum Friseur?'}</p>
+                 <p className="text-base sm:text-lg md:text-xl text-white font-medium mb-3 md:mb-4">{t.walkinBlock?.text1 || 'Du möchtest spontan zum Friseur?'}</p>
                  <p className="text-gray-400 text-xs sm:text-sm md:text-base leading-relaxed mb-2 font-light">{t.walkinBlock?.text2 || 'Bei REBO SALON kannst du mit oder ohne Termin vorbeikommen.'}</p>
-                 <p className="text-gray-400 text-xs sm:text-sm md:text-base leading-relaxed font-light">{t.walkinBlock?.text3 || 'Besuche uns einfach w├ñhrend unserer ├ûffnungszeiten in der Schweinfurter Innenstadt.'}</p>
+                 <p className="text-gray-400 text-xs sm:text-sm md:text-base leading-relaxed font-light">{t.walkinBlock?.text3 || 'Besuche uns einfach während unserer Öffnungszeiten in der Schweinfurter Innenstadt.'}</p>
                </div>
             </section>
 
@@ -2165,7 +2165,7 @@ function MainContent() {
                 <div key={item.id} className="flex items-end justify-between p-4 md:p-6 rounded-sm shadow-lg bg-[#111] border border-white/10">
                   <div>
                      <h3 className="text-lg md:text-xl font-medium">{item.name}</h3>
-                     <p className="text-xs text-gray-500 mt-1">ΓÅ▒ {item.durationMins || 60} {t.services?.min || 'Minuten'}</p>
+                     <p className="text-xs text-gray-500 mt-1">⏱ {item.durationMins || 60} {t.services?.min || 'Minuten'}</p>
                   </div>
                   <div className="text-right flex items-center gap-3">
                     {item.oldPrice && <span className="text-xs md:text-sm text-gray-500 line-through">statt {item.oldPrice}</span>}
@@ -2216,7 +2216,7 @@ function MainContent() {
         <footer className="w-full py-8 flex flex-col items-center justify-center text-xs tracking-wider border-t border-white/5 text-gray-500 bg-[#0a0a0a]">
           <div className="w-full max-w-sm text-center">
             <p>
-              ┬⌐ {new Date().getFullYear()} Rebo Salon. {t.common?.footer || 'Alle Rechte vorbehalten.'}
+              © {new Date().getFullYear()} Rebo Salon. {t.common?.footer || 'Alle Rechte vorbehalten.'}
               <span onDoubleClick={() => setPage('admin')} className="cursor-default select-none ml-1 opacity-0 hover:opacity-10 transition-opacity">.</span>
             </p>
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-4 text-xs">
@@ -2252,4 +2252,3 @@ export default function Page() {
     </CookieConsentProvider>
   );
 }
-
