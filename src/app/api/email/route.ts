@@ -6,7 +6,7 @@ import { validateRequest, emailRequestSchema, createAuditLog, logAudit } from '@
 
 // Server-side source of truth for the salon's own inbox - never trust a
 // client-supplied value for this.
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'rick.maity07@gmail.com';
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'sreber657@gmail.com';
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
