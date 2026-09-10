@@ -191,7 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [stylistsDB, setStylistsDB] = useState<StylistItem[]>([]);
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({ holidays: [] });
 
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'sreber657@gmail.com';
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
   
   const getAuthHeaders = async () => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -563,14 +563,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addNotification("Translation saved via Cloud!", 'success');
   };
 
+  const sendEmailChecked = async (headers: Record<string, string>, payload: object, label: string) => {
+    try {
+      const res = await fetch('/api/email', { method: 'POST', headers, body: JSON.stringify(payload) });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error(`Email send failed (${label}):`, res.status, body.error || body);
+      }
+    } catch (e) {
+      console.error(`Email send network error (${label}):`, e);
+    }
+  };
+
   const sendDualEmail = async (uEmail: string | null, uSubj: string, uMsg: string, aSubj: string, aMsg: string) => {
     try {
       const headers = await getAuthHeaders();
       if (uEmail) {
-        fetch('/api/email', { method: 'POST', headers, body: JSON.stringify({ email: uEmail, subject: uSubj, message: uMsg }) }).catch(()=>{});
+        sendEmailChecked(headers, { email: uEmail, subject: uSubj, message: uMsg }, 'user');
       }
-      if (aSubj && aMsg) {
-        fetch('/api/email', { method: 'POST', headers, body: JSON.stringify({ email: adminEmail, subject: aSubj, message: aMsg }) }).catch(()=>{});
+      if (aSubj && aMsg && adminEmail) {
+        sendEmailChecked(headers, { email: adminEmail, subject: aSubj, message: aMsg }, 'admin');
+      } else if (aSubj && aMsg && !adminEmail) {
+        console.error('Admin email not sent: NEXT_PUBLIC_ADMIN_EMAIL is not set');
       }
     } catch (e) {
       console.error("Dual Email Execution Failed", e);
