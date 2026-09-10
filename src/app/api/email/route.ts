@@ -5,8 +5,9 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { validateRequest, emailRequestSchema, createAuditLog, logAudit } from '@/lib/validation';
 
 // Server-side source of truth for the salon's own inbox - never trust a
-// client-supplied value for this.
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'sreber657@gmail.com';
+// client-supplied value for this. No hardcoded fallback: misconfiguration
+// should fail loudly, not silently route mail to a developer's own inbox.
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
     if (!isCallerAdmin) {
       const callerEmail = decodedToken.email?.toLowerCase();
       const targetEmail = email.toLowerCase();
-      if (targetEmail !== callerEmail && targetEmail !== ADMIN_EMAIL.toLowerCase()) {
+      if (targetEmail !== callerEmail && targetEmail !== ADMIN_EMAIL?.toLowerCase()) {
         const auditLog = createAuditLog(req, userId, userRole, 'email_send', undefined, 'notification', false, 'Recipient not permitted for non-admin caller');
         logAudit(auditLog);
         return NextResponse.json({ error: 'Forbidden: you may only email yourself or the salon' }, { status: 403 });
@@ -69,9 +70,12 @@ export async function POST(req: NextRequest) {
     }
 
     const emailUser = process.env.EMAIL_USER;
-    const emailPass = process.env.EMAIL_PASS;
+    // Gmail App Passwords are often copy-pasted with the spaces Google
+    // displays them with (e.g. "abcd efgh ijkl mnop") - strip them, since
+    // Gmail's SMTP login rejects the password if spaces are included.
+    const emailPass = process.env.EMAIL_PASS?.replace(/\s+/g, '');
 
-    if (!emailUser || !emailPass) {
+    if (!emailUser || !emailPass || !ADMIN_EMAIL) {
       const auditLog = createAuditLog(req, userId, userRole, 'email_send', undefined, 'notification', false, 'Email credentials not configured');
       logAudit(auditLog);
       return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });

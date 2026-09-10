@@ -191,7 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [stylistsDB, setStylistsDB] = useState<StylistItem[]>([]);
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({ holidays: [] });
 
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'sreber657@gmail.com';
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
   
   const getAuthHeaders = async () => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -561,6 +561,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedAt: new Date().toISOString()
     });
     addNotification("Translation saved via Cloud!", 'success');
+  };
+
+  const sendEmailChecked = async (headers: Record<string, string>, payload: object, label: string) => {
+    try {
+      const res = await fetch('/api/email', { method: 'POST', headers, body: JSON.stringify(payload) });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error(`Email send failed (${label}):`, res.status, body.error || body);
+      }
+    } catch (e) {
+      console.error(`Email send network error (${label}):`, e);
+    }
   };
 
   const sendDualEmail = async (uEmail: string | null, uSubj: string, uMsg: string, aSubj: string, aMsg: string) => {
