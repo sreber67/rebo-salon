@@ -191,7 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [stylistsDB, setStylistsDB] = useState<StylistItem[]>([]);
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({ holidays: [] });
 
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'rick.maity07@gmail.com';
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'sreber657@gmail.com';
   
   const getAuthHeaders = async () => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
