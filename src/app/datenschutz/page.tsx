@@ -17,7 +17,7 @@ export default function DatenschutzPage() {
           <p>Inh. Recep Bozkurt</p>
           <p>Manggasse 6, 97421 Schweinfurt</p>
           <p>Telefon: 0176 42980985</p>
-          <p>E-Mail: datenschutz@rebosalon.de</p>
+          <p>E-Mail: sreber657@gmail.com</p>
         </Section>
 
         <Section title="2. Verarbeitungsübersicht">
@@ -111,7 +111,7 @@ export default function DatenschutzPage() {
               <tr className="border-b border-white/10"><td className="p-2">Art. 15 – Auskunft</td><td className="p-2">Bestätigung & Kopie der Daten</td><td className="p-2">Profil → 'Daten exportieren' oder E-Mail</td></tr>
               <tr className="border-b border-white/10"><td className="p-2">Art. 16 – Berichtigung</td><td className="p-2">Korrektur unrichtiger Daten</td><td className="p-2">Profil → Einstellungen bearbeiten</td></tr>
               <tr className="border-b border-white/10"><td className="p-2">Art. 17 – Löschung</td><td className="p-2">'Recht auf Vergessenwerden' (vorbehaltlich Aufbewahrungspflichten)</td><td className="p-2">Profil → 'Konto löschen' oder E-Mail</td></tr>
-              <tr className="border-b border-white/10"><td className="p-2">Art. 18 – Einschränkung</td><td className="p-2">Verarbeitung beschränken</td><td className="p-2">E-Mail an datenschutz@rebosalon.de</td></tr>
+              <tr className="border-b border-white/10"><td className="p-2">Art. 18 – Einschränkung</td><td className="p-2">Verarbeitung beschränken</td><td className="p-2">E-Mail an sreber657@gmail.com</td></tr>
               <tr className="border-b border-white/10"><td className="p-2">Art. 20 – Datenübertragbarkeit</td><td className="p-2">Strukturierter, maschinenlesbarer Export</td><td className="p-2">Profil → 'Daten exportieren' (JSON)</td></tr>
               <tr className="border-b border-white/10"><td className="p-2">Art. 21 – Widerspruch</td><td className="p-2">Gegen Verarbeitung aus berechtigtem Interesse</td><td className="p-2">E-Mail oder Cookie-Banner (Analytics)</td></tr>
               <tr className="border-b border-white/10"><td className="p-2">Art. 7 Abs. 3 – Widerruf</td><td className="p-2">Einwilligung jederzeit widerrufen</td><td className="p-2">Cookie-Banner oder E-Mail</td></tr>
@@ -159,7 +159,7 @@ export default function DatenschutzPage() {
           <p>REBO SALON</p>
           <p>Inh. Recep Bozkurt</p>
           <p>Manggasse 6, 97421 Schweinfurt</p>
-          <p>E-Mail: datenschutz@rebosalon.de</p>
+          <p>E-Mail: sreber657@gmail.com</p>
           <p>Telefon: +49 176 42980985</p>
           <p className="mt-2"><strong>Datenschutzbeauftragter:</strong> Nicht verpflichtend bestellt (weniger als 20 Personen). Ansprechpartner: Inhaber.</p>
         </Section>

@@ -56,6 +56,13 @@ export default function RootLayout({
   return (
     <html lang="de" className="scroll-smooth">
       <head>
+        {/* eRecht24 / CCM19 Cookie Banner Script */}
+        <Script 
+          src="https://cloud.ccm19.de/app.js?apiKey=ead3fb743d306c48b3a0b5ef3285c3c2a808b5b05adc30b5&domain=6aa5454588131b02930bca92" 
+          strategy="beforeInteractive" 
+          referrerPolicy="origin"
+        />
+        
         <Script
           id="schema-local-business"
           type="application/ld+json"

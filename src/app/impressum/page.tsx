@@ -19,11 +19,39 @@ export default function ImpressumPage() {
 
         <Section title="Kontakt">
           <p>Telefon: 0176 42980985</p>
-          <p>E-Mail: info@rebosalon.de</p>
+          <p>E-Mail: sreber657@gmail.com</p>
         </Section>
 
         <Section title="Umsatzsteuer-ID">
-          <p>Kleinunternehmer gemäß § 19 UStG — keine Umsatzsteuer-ID ausgewiesen</p>
+          <p>Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:</p>
+          <p>24927432834</p>
+        </Section>
+
+        <Section title="Berufsbezeichnung und berufsrechtliche Regelungen">
+          <p>Berufsbezeichnung: Friseur</p>
+          <p className="mt-2">Zuständige Kammer:</p>
+          <p>Handwerkskammer für Unterfranken</p>
+          <p>Rennweger Ring 3, 97070 Würzburg</p>
+          <p className="mt-2">Verliehen in: Deutschland</p>
+          <p className="mt-2">Es gelten folgende berufsrechtliche Regelungen:</p>
+          <p>
+            Handwerksordnung (HwO), Anlage A – Friseurhandwerk, einsehbar unter:{" "}
+            <a
+              href="https://www.gesetze-im-internet.de/hwo/anlage_a.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-yellow-500 underline"
+            >
+              https://www.gesetze-im-internet.de/hwo/anlage_a.html
+            </a>
+          </p>
+        </Section>
+
+        <Section title="Angaben zur Berufshaftpflichtversicherung">
+          <p><strong>Name und Sitz des Versicherers:</strong></p>
+          <p>HDI Versicherung AG, 30650 Hannover</p>
+          <p>(vermittelt durch: asspario Versicherungsdienst GmbH, Riegelgrube 5a, 55435 Bad Kreuznach)</p>
+          <p className="mt-2"><strong>Geltungsraum der Versicherung:</strong> Deutschland</p>
         </Section>
 
         <Section title="Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV">
@@ -32,7 +60,7 @@ export default function ImpressumPage() {
 
         <Section title="EU-Streitschlichtung">
           <p>
-            Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: 
+            Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:{" "}
             <a
               href="https://ec.europa.eu/consumers/odr/"
               target="_blank"
@@ -41,7 +69,14 @@ export default function ImpressumPage() {
             >
               https://ec.europa.eu/consumers/odr/
             </a>
-            . Unsere E-Mail-Adresse finden Sie oben. Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.
+            . Unsere E-Mail-Adresse finden Sie oben.
+          </p>
+        </Section>
+
+        <Section title="Verbraucherstreitbeilegung / Universalschlichtungsstelle">
+          <p>
+            Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer
+            Verbraucherschlichtungsstelle teilzunehmen.
           </p>
         </Section>
       </div>
