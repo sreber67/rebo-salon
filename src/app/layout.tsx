@@ -56,12 +56,6 @@ export default function RootLayout({
   return (
     <html lang="de" className="scroll-smooth">
       <head>
-        {/* FIXED: Using standard HTML script tag instead of Next.js Script component to prevent production stripping */}
-        <script 
-          src="https://cloud.ccm19.de/app.js?apiKey=ead3fb743d306c48b3a0b5ef3285c3c2a808b5b05adc30b5&domain=6aa5454588131b02930bca92" 
-          referrerPolicy="origin"
-        ></script>
-        
         <Script
           id="schema-local-business"
           type="application/ld+json"
@@ -72,6 +66,14 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="bg-[#1a1814] text-[#e8e6e3] font-sans-custom selection:bg-[#c5a059] selection:text-[#1a1814] antialiased">
+        
+        {/* CCM19 Cookie Banner using afterInteractive inside the body */}
+        <Script 
+          src="https://cloud.ccm19.de/app.js?apiKey=ead3fb743d306c48b3a0b5ef3285c3c2a808b5b05adc30b5&domain=6aa5454588131b02930bca92" 
+          strategy="afterInteractive" 
+          referrerPolicy="origin"
+        />
+
         {children}
       </body>
     </html>
