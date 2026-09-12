@@ -5,7 +5,6 @@ import { auth, db, getGoogleProvider, getFacebookProvider } from '../lib/firebas
 import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, verifyBeforeUpdateEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { uploadReferenceImage, uploadSiteAsset } from '@/lib/storage';
-import { CookieConsentProvider, CookieConsentBanner, useCookieConsent } from '@/components/CookieConsent';
 import { DataExportButton, DataExportModal } from '@/components/DataExport';
 import { DeleteAccountButton, AccountDeletionModal } from '@/components/AccountDeletion';
 import { ProfileView } from '@/components/ProfileView';
@@ -1781,7 +1780,7 @@ function ContactView() {
                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/></svg>
                  </a>
                  <a href="https://www.facebook.com/profile.php?id=61572606551232" target="_blank" rel="noopener noreferrer" className="w-14 h-14 flex items-center justify-center rounded-full border transition-all border-white/20 text-[#d4af37] hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black">
-                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
                  </a>
                </div>
             </div>
@@ -1907,7 +1906,6 @@ function GalleryView({ images, title }: { images: string[]; title: string }) {
 
 function MainContent() {
   const { page, setPage, t, servicesDB, productsDB, currentUser, generalSettings, lang, getTranslatedServices, getTranslatedProducts, getTranslatedStylists, getTranslatedGeneralSettings } = useApp();
-  const { resetConsent } = useCookieConsent();
 
   const translatedServices = getTranslatedServices();
   const translatedProducts = getTranslatedProducts();
@@ -2228,9 +2226,23 @@ function MainContent() {
                 {t.nav?.datenschutz || 'Datenschutz'}
               </a>
               <span className="text-gray-700">|</span>
+             {/* CCM19 / eRecht24 Cookie Settings Trigger */}
               <button
-                onClick={resetConsent}
-                className="text-gray-400 hover:text-yellow-500 transition-colors underline"
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    // Check if the script loaded properly
+                    if ((window as any).CCM && typeof (window as any).CCM.openWidget === 'function') {
+                      (window as any).CCM.openWidget();
+                    } else if ((window as any).CCM19 && typeof (window as any).CCM19.openWidget === 'function') {
+                      (window as any).CCM19.openWidget();
+                    } else {
+                      // If it gets here, an Adblocker or Brave Shields killed the script!
+                      alert("Die Cookie-Einstellungen können nicht geöffnet werden. Bitte deaktivieren Sie Ihren Adblocker oder Brave Shields für diese Seite.");
+                    }
+                  }
+                }}
+                className="text-gray-400 hover:text-[#d4af37] transition-colors underline"
               >
                 {t.nav?.cookieSettings || 'Cookie-Einstellungen'}
               </button>
@@ -2238,17 +2250,15 @@ function MainContent() {
           </div>
         </footer>
       )}
+    
     </div>
   );
 }
 
 export default function Page() {
   return (
-    <CookieConsentProvider>
-      <AppProvider>
-        <CookieConsentBanner />
-        <MainContent />
-      </AppProvider>
-    </CookieConsentProvider>
+    <AppProvider>
+      <MainContent />
+    </AppProvider>
   );
 }
