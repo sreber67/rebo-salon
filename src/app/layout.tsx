@@ -61,19 +61,22 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/* CCM19 Cookie Consent - loaded beforeInteractive so it can block
+            other scripts/iframes (Analytics, Google Maps, etc.) until the
+            visitor actually consents. Configure categories/embeddings at
+            https://www.ccm19.de - this script tag alone doesn't define what
+            gets blocked, that's all managed in the CCM19 dashboard. */}
+        <Script
+          id="ccm19-cookie-consent"
+          src="https://cloud.ccm19.de/app.js?apiKey=ead3fb743d306c48b3a0b5ef3285c3c2a808b5b05adc30b5&domain=6aa5454588131b02930bca92"
+          strategy="beforeInteractive"
+          referrerPolicy="origin"
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="bg-[#1a1814] text-[#e8e6e3] font-sans-custom selection:bg-[#c5a059] selection:text-[#1a1814] antialiased">
-        
-        {/* CCM19 Cookie Banner using afterInteractive inside the body */}
-        <Script 
-          src="https://cloud.ccm19.de/app.js?apiKey=ead3fb743d306c48b3a0b5ef3285c3c2a808b5b05adc30b5&domain=6aa5454588131b02930bca92" 
-          strategy="afterInteractive" 
-          referrerPolicy="origin"
-        />
-
         {children}
       </body>
     </html>
