@@ -10,7 +10,7 @@ import { DeleteAccountButton, AccountDeletionModal } from '@/components/AccountD
 import { ProfileView } from '@/components/ProfileView';
 import { Navbar } from '@/components/Navbar';
 import { getInternalHeaders } from '@/lib/validation';
-import { AppProvider, useApp, Appointment, ServiceItem, ProductItem, fallbackTranslations, TimeSlot, UserProfile, WaitlistItem, StylistItem, Guest } from '@/context/AppContext';
+import { AppProvider, useApp, Appointment, ServiceItem, ProductItem, fallbackTranslations, initialSlots, ADMIN_ALERT_USER_ID, toLocalDateStr, TimeSlot, UserProfile, WaitlistItem, StylistItem, Guest } from '@/context/AppContext';
 
 const countryCodes = [
   { code: '+49', label: 'Deutschland 🇩🇪' }, { code: '+43', label: 'Österreich 🇦🇹' }, { code: '+41', label: 'Schweiz 🇨🇭' },
@@ -19,11 +19,6 @@ const countryCodes = [
   { code: '+32', label: 'Belgien 🇧🇪' }, { code: '+48', label: 'Polen 🇵🇱' }, { code: '+46', label: 'Schweden 🇸🇪' },
 ];
 
-const initialSlots: TimeSlot[] = [
-  { id: 't1', time: '09:00', isBooked: false }, { id: 't2', time: '10:00', isBooked: false },
-  { id: 't3', time: '11:00', isBooked: false }, { id: 't4', time: '13:00', isBooked: false },
-  { id: 't5', time: '14:00', isBooked: false }, { id: 't6', time: '15:30', isBooked: false },
-]; 
 
 function LanguageSelector() {
   const { lang, changeLanguage, isTranslatingUI, t } = useApp();
@@ -90,14 +85,14 @@ function NotificationBell() {
   
   if (!currentUser) return null;
 
-  const userAlerts = alerts.filter(a => a.userId === currentUser.id).sort((a,b) => b.createdAt - a.createdAt);
+  const userAlerts = alerts.filter(a => a.userId === currentUser.id || a.userId === ADMIN_ALERT_USER_ID).sort((a,b) => b.createdAt - a.createdAt);
   const unreadCount = userAlerts.filter(a => !a.isRead).length;
 
   const notifTrans = t.notifications || fallbackTranslations.de.notifications;
 
   return (
     <div className="relative group mx-2">
-      <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 rounded-full border transition-colors border-white/10 text-[#d4af37] hover:bg-[#d4af37] hover:text-black">
+      <button onClick={() => { if (currentUser.role === 'admin' && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission(); setIsOpen(!isOpen); }} className="relative p-2 rounded-full border transition-colors border-white/10 text-[#d4af37] hover:bg-[#d4af37] hover:text-black">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
         {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border border-black flex items-center justify-center text-white text-[10px] font-bold shadow-lg animate-pulse">{unreadCount}</span>}
       </button>
@@ -1401,7 +1396,7 @@ function AdminView() {
 
 // --- PUBLIC BOOKING VIEW ---
 function BookingView() {
-  const { t, currentUser, addAppointment, servicesDB, getAvailableSlots, addNotification, addToWaitlist, stylistsDB, getTranslatedServices, getTranslatedStylists } = useApp();
+  const { t, lang, currentUser, addAppointment, servicesDB, getAvailableSlots, findNextAvailableSlot, addNotification, addToWaitlist, stylistsDB, getTranslatedServices, getTranslatedStylists } = useApp();
   const addAppointmentTyped = addAppointment as (appt: Omit<Appointment, 'id'>) => Promise<import('firebase/firestore').DocumentReference | undefined>;
   const [submitted, setSubmitted] = useState(false);
   
@@ -1425,6 +1420,14 @@ function BookingView() {
   const translatedStylists = getTranslatedStylists();
   const totalDuration = selectedServices.reduce((sum, s) => sum + (s.durationMins || 60), 0);
   const openSlots = getAvailableSlots(bookingDate, stylist, totalDuration);
+  const noSlotFitsDay = !!bookingDate && guests.length === 0 && selectedServices.length > 0 && !openSlots.some(s => !s.isBooked);
+  const nextSlot = noSlotFitsDay ? findNextAvailableSlot(bookingDate, stylist, totalDuration) : null;
+  // Newer booking texts may be missing from translations stored in Firestore
+  const bookingText = (key: string): string => t.booking?.[key] || fallbackTranslations[lang]?.booking?.[key] || fallbackTranslations.de.booking[key];
+  const formatDuration = (mins: number) => mins >= 60 ? `${Math.floor(mins / 60)} h${mins % 60 ? ` ${mins % 60} min` : ''}` : `${mins} min`;
+
+  // Ignore the chosen time once it no longer fits (e.g. a longer service was added)
+  const activeSlot = openSlots.some(s => s.id === selectedSlot && !s.isBooked) ? selectedSlot : "";
 
   // Dynamic Stylist Filtering
   const availableStylists = translatedStylists && translatedStylists.length > 0 
@@ -1493,7 +1496,13 @@ function BookingView() {
     e.preventDefault();
     if (!currentUser || selectedServices.length === 0) return;
     
-    if (guests.length === 0 && !selectedSlot) return;
+    if (guests.length === 0 && !activeSlot) return;
+    const now = new Date();
+    const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    if (bookingDate < toLocalDateStr(now) || (guests.length > 0 && bookingDate === toLocalDateStr(now) && preferredTime <= nowTime)) {
+      addNotification(bookingText('pastDateError'), "error");
+      return;
+    }
     if (guests.length > 0 && !preferredTime) {
       addNotification("Bitte Wunschuhrzeit angeben.", "error");
       return;
@@ -1511,7 +1520,7 @@ function BookingView() {
       totalDurationMins: totalDuration,
       stylist: stylist,
       date: bookingDate,
-      time: guests.length > 0 ? preferredTime : (openSlots.find(s => s.id === selectedSlot)?.time || '00:00'),
+      time: guests.length > 0 ? preferredTime : (openSlots.find(s => s.id === activeSlot)?.time || '00:00'),
       status: 'pending',
       specialRequests: specialRequests,
       sendsms: true, usedReward: false, isEmergency: false,
@@ -1685,7 +1694,7 @@ function BookingView() {
               <div>
                 <label className="block text-xs uppercase text-gray-400 mb-3">{t.booking.date} {guests.length === 0 && `& ${t.booking.time}`} *</label>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <input required type="date" value={bookingDate} onChange={e=>{setBookingDate(e.target.value); setSelectedSlot("");}} className="sm:w-[40%] bg-black border border-white/20 p-4 rounded-sm text-white" />
+                  <input required type="date" min={toLocalDateStr(new Date())} value={bookingDate} onChange={e=>{setBookingDate(e.target.value); setSelectedSlot("");}} className="sm:w-[40%] bg-black border border-white/20 p-4 rounded-sm text-white" />
                   
                   {bookingDate ? (
                     <div className="flex flex-col flex-1 gap-4">
@@ -1701,11 +1710,29 @@ function BookingView() {
                         <div className="grid grid-cols-3 gap-2">
                           {openSlots.map((slot: TimeSlot) => (
                             <button key={slot.id} type="button" disabled={slot.isBooked} onClick={() => setSelectedSlot(slot.id)}
-                              className={`py-3 rounded-sm border text-xs font-bold transition-colors ${slot.isBooked ? 'opacity-20 cursor-not-allowed' : selectedSlot === slot.id ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'border-white/20 text-gray-300 hover:bg-white/5'}`}
+                              className={`py-3 rounded-sm border text-xs font-bold transition-colors ${slot.isBooked ? 'opacity-20 cursor-not-allowed' : activeSlot === slot.id ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'border-white/20 text-gray-300 hover:bg-white/5'}`}
                             >
                               {slot.time}
                             </button>
                           ))}
+                        </div>
+                      )}
+
+                      {noSlotFitsDay && (
+                        <div className="p-4 border border-[#d4af37]/40 bg-[#d4af37]/5 rounded-sm animate-in fade-in">
+                          <p className="text-xs text-gray-300">{bookingText('noSlotsFit')}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-2">{bookingText('totalDurationLabel')}: {formatDuration(totalDuration)}</p>
+                          {nextSlot ? (
+                            <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <p className="text-sm text-white">
+                                {bookingText('nextAvailable')}{' '}
+                                <span className="font-bold text-[#d4af37]">{new Date(`${nextSlot.date}T00:00:00`).toLocaleDateString(lang, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}, {nextSlot.slot.time}</span>
+                              </p>
+                              <button type="button" onClick={() => { setBookingDate(nextSlot.date); setSelectedSlot(nextSlot.slot.id); }} className="px-4 py-2 bg-[#d4af37] text-black text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-white transition-colors">{bookingText('takeSlotBtn')}</button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400 mt-3">{bookingText('noSlotFound')}</p>
+                          )}
                         </div>
                       )}
                       
@@ -1727,7 +1754,7 @@ function BookingView() {
                 </div>
               </div>
 
-              <button type="submit" disabled={(guests.length === 0 && !selectedSlot) || selectedServices.length === 0} className="w-full py-4 rounded-sm font-bold uppercase tracking-widest text-sm transition-all mt-6 disabled:opacity-50 bg-[#d4af37] text-black">
+              <button type="submit" disabled={(guests.length === 0 && !activeSlot) || selectedServices.length === 0} className="w-full py-4 rounded-sm font-bold uppercase tracking-widest text-sm transition-all mt-6 disabled:opacity-50 bg-[#d4af37] text-black">
                 {t.booking.submit}
               </button>
             </form>

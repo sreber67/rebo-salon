@@ -91,6 +91,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // No back-dated bookings (salon runs on German time)
+    const berlinNow = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+    const [todayBerlin, nowTimeBerlin] = berlinNow.split(' ');
+    const { date, time } = validation.data;
+    if (!isCallerAdmin && (date < todayBerlin || (date === todayBerlin && time <= nowTimeBerlin))) {
+      return NextResponse.json({ error: 'Appointments in the past cannot be booked' }, { status: 400 });
+    }
+
     const appointmentData = {
       ...validation.data,
       userId,

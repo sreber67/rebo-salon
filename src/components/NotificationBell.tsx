@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { fallbackTranslations } from '@/context/AppContext';
+import { fallbackTranslations, ADMIN_ALERT_USER_ID } from '@/context/AppContext';
 
 export function NotificationBell() {
   const { alerts, currentUser, markAlertRead, clearAlerts, setPage, t } = useApp();
@@ -9,14 +9,14 @@ export function NotificationBell() {
   
   if (!currentUser) return null;
 
-  const userAlerts = alerts.filter(a => a.userId === currentUser.id).sort((a,b) => b.createdAt - a.createdAt);
+  const userAlerts = alerts.filter(a => a.userId === currentUser.id || a.userId === ADMIN_ALERT_USER_ID).sort((a,b) => b.createdAt - a.createdAt);
   const unreadCount = userAlerts.filter(a => !a.isRead).length;
 
   const notifTrans = t.notifications || fallbackTranslations.de.notifications;
 
   return (
     <div className="relative group mx-2">
-      <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 rounded-full border transition-colors border-white/10 text-[#d4af37] hover:bg-[#d4af37] hover:text-black">
+      <button onClick={() => { if (currentUser.role === 'admin' && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission(); setIsOpen(!isOpen); }} className="relative p-2 rounded-full border transition-colors border-white/10 text-[#d4af37] hover:bg-[#d4af37] hover:text-black">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
         {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border border-black flex items-center justify-center text-white text-[10px] font-bold shadow-lg animate-pulse">{unreadCount}</span>}
       </button>

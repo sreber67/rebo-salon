@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db, getGoogleProvider, getFacebookProvider } from '../lib/firebase';
 import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, verifyBeforeUpdateEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
-import { doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, DocumentReference } from 'firebase/firestore';
+import { doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, DocumentReference, query, where } from 'firebase/firestore';
 
 type Language = string;
 type Page = 'home' | 'services' | 'gallery' | 'products' | 'contact' | 'booking' | 'admin' | 'auth' | 'profile';
@@ -47,11 +47,25 @@ export type Notification = { id: number; message: string; type: 'success' | 'inf
 export type TimeSlot = { id: string; time: string; isBooked: boolean };
 export type TranslationData = { [key: string]: { [key: string]: any } };
 
-const initialSlots: TimeSlot[] = [
-  { id: 't1', time: '09:00', isBooked: false }, { id: 't2', time: '10:00', isBooked: false },
-  { id: 't3', time: '11:00', isBooked: false }, { id: 't4', time: '13:00', isBooked: false },
-  { id: 't5', time: '14:00', isBooked: false }, { id: 't6', time: '15:30', isBooked: false },
-];
+// Bookable start times: 09:00 to 18:30 in 30-minute steps
+export const initialSlots: TimeSlot[] = Array.from({ length: 20 }, (_, i) => {
+  const mins = 9 * 60 + i * 30;
+  const time = `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+  return { id: `t${i + 1}`, time, isBooked: false };
+});
+
+// Every booking must finish by closing time; the salon is closed on these weekdays (0 = Sunday)
+export const CLOSING_TIME_MINS = 19 * 60;
+const CLOSED_WEEKDAYS = [0];
+// How far ahead to look when suggesting the next free slot
+const NEXT_SLOT_SEARCH_DAYS = 60;
+
+// YYYY-MM-DD in local time (toISOString would shift the date near midnight)
+export const toLocalDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Alerts addressed to the salon admins rather than a single user
+export const ADMIN_ALERT_USER_ID = 'admin';
 
 export interface AppContextType {
   lang: Language; setLang: (lang: Language) => void;
@@ -81,6 +95,7 @@ export interface AppContextType {
   notifications: Notification[]; addNotification: (msg: string, type?: 'success' | 'info' | 'error') => void;
   alerts: Alert[]; markAlertRead: (id: string) => Promise<void>; clearAlerts: () => Promise<void>;
   getAvailableSlots: (date: string, stylist: string, requiredDuration?: number) => TimeSlot[];
+  findNextAvailableSlot: (fromDate: string, stylist: string, requiredDuration: number) => { date: string; slot: TimeSlot } | null;
   getTranslatedServices: () => ServiceItem[];
   getTranslatedProducts: () => ProductItem[];
   getTranslatedStylists: () => StylistItem[];
@@ -127,7 +142,7 @@ export const fallbackTranslations: TranslationData = {
     products: { title: "Store & Produkte", subtitle: "Professionelle Pflege für Zuhause" }, 
     contact: { title: "Besuche REBO SALON", subtitle: "Zentral in Schweinfurt", addressLabel: "Adresse", address: "Manggasse 6, 97421 Schweinfurt", phoneLabel: "Telefon", phone: "0176 42980985", hoursLabel: "Öffnungszeiten", hours: [ { days: "Montag - Samstag", time: "09:00 - 19:00 Uhr" }, { days: "Sonntag", time: "Geschlossen" } ], socialLabel: "Social Media" }, 
     auth: { loginTitle: "Anmelden", loginSub: "Um einen Termin zu buchen, melden Sie sich bitte an.", email: "E-Mail-Adresse", pass: "Passwort", loginBtn: "Einloggen", register: "Oder neu registrieren", social: "Mit Social Media fortfahren", noAccount: "Noch kein Konto?", haveAccount: "Bereits ein Konto?", registerTitle: "Konto erstellen", resetPassBtn: "Passwort vergessen?", passStrength: "Passwort-Stärke:", weak: "Schwach", medium: "Mittel", strong: "Stark", ruleLength: "Mindestens 8 Zeichen", ruleUpper: "Ein Großbuchstabe", ruleLower: "Ein Kleinbuchstabe", ruleNum: "Eine Zahl", ruleSpec: "Ein Sonderzeichen" }, 
-    booking: { title: "Termin buchen", subtitle: "Wählen Sie Ihren Stylisten.", quote: "Dein perfekter Look beginnt hier.", name: "Vollständiger Name", phone: "Telefon", service: "Leistung", stylist: "Stylist auswählen", stylistAny: "Egal (Wer frei ist)", stylistOptions: ["Egal (Wer frei ist)", "Rebo (Inhaber)", "Anna", "Marcus"], requestsLabel: "Besondere Wünsche / Notizen (Optional)", date: "Datum", time: "Uhrzeit", dsgvoNote: "Mit dem Absenden stimmen Sie der DSGVO zu.", smsNote: "SMS-Erinnerung 24h vor dem Termin erhalten.", reward: "Loyalty Bonus", rewardDesc: "Sie haben 10 Haarschnitte erreicht! Möchten Sie 50% Rabatt auf diesen Termin anwenden?", submit: "Kostenpflichtig Buchen", success: "Anfrage gesendet! Wir haben eine Bestätigungsmail an Sie gesendet.", refImage: "Referenzbild (Optional)", totalDuration: "Gesamtdauer:", pickDateFirst: "Wählen Sie zuerst ein Datum.", bookNew: "Neuen Termin anfragen", waitlistLabel: "Kein passender Termin?", joinWaitlistBtn: "Warteliste beitreten", addGuest: "+ Person / Kind hinzufügen", groupNotice: "Gruppenbuchungen werden manuell geprüft. Sende uns deine Wunschanfrage und wir melden uns!", prefTime: "Wunschuhrzeit", guestName: "Name", guestAge: "Alter", guestPhone: "Telefon (für ab 14 J.)" }, 
+    booking: { title: "Termin buchen", subtitle: "Wählen Sie Ihren Stylisten.", quote: "Dein perfekter Look beginnt hier.", name: "Vollständiger Name", phone: "Telefon", service: "Leistung", stylist: "Stylist auswählen", stylistAny: "Egal (Wer frei ist)", stylistOptions: ["Egal (Wer frei ist)", "Rebo (Inhaber)", "Anna", "Marcus"], requestsLabel: "Besondere Wünsche / Notizen (Optional)", date: "Datum", time: "Uhrzeit", dsgvoNote: "Mit dem Absenden stimmen Sie der DSGVO zu.", smsNote: "SMS-Erinnerung 24h vor dem Termin erhalten.", reward: "Loyalty Bonus", rewardDesc: "Sie haben 10 Haarschnitte erreicht! Möchten Sie 50% Rabatt auf diesen Termin anwenden?", submit: "Kostenpflichtig Buchen", success: "Anfrage gesendet! Wir haben eine Bestätigungsmail an Sie gesendet.", refImage: "Referenzbild (Optional)", totalDuration: "Gesamtdauer:", pickDateFirst: "Wählen Sie zuerst ein Datum.", bookNew: "Neuen Termin anfragen", waitlistLabel: "Kein passender Termin?", joinWaitlistBtn: "Warteliste beitreten", noSlotsFit: "An diesem Tag ist kein Termin mehr frei, bei dem alle gewählten Leistungen vor Ladenschluss (19:00 Uhr) fertig werden.", totalDurationLabel: "Gesamtdauer", nextAvailable: "Nächster freier Termin:", takeSlotBtn: "Diesen Termin übernehmen", pastDateError: "Termine in der Vergangenheit können nicht gebucht werden.", noSlotFound: "In den nächsten Wochen ist leider kein passender Termin frei. Trage dich gern in die Warteliste ein oder ruf uns an.", addGuest: "+ Person / Kind hinzufügen", groupNotice: "Gruppenbuchungen werden manuell geprüft. Sende uns deine Wunschanfrage und wir melden uns!", prefTime: "Wunschuhrzeit", guestName: "Name", guestAge: "Alter", guestPhone: "Telefon (für ab 14 J.)" }, 
     profile: { title: "Mein Profil", pointsTitle: "Ihre Treuepunkte", pointsDesc: "Sammeln Sie 10 Punkte für 50% Rabatt auf Ihren nächsten Schnitt!", historyTitle: "Ihr Besuchsverlauf", upcomingTitle: "Anstehende Termine", notesLabel: "Stylisten-Notizen:", noHistory: "Bisher keine Termine.", saveNote: "Notiz speichern", welcome: "Willkommen zurück", overview: "Übersicht", settings: "Einstellungen", editProfile: "Profil bearbeiten", contactData: "Kontaktdaten", noPhone: "Keine Telefonnummer gespeichert. Bitte in den Einstellungen hinzufügen.", acceptTime: "Zeit Akzeptieren", cancel: "Stornieren", pending: "Ausstehend", completed: "Abgeschlossen", newProposal: "Neuer Terminvorschlag vom Salon:" }, 
     notifications: { title: "Benachrichtigungen", empty: "Keine Benachrichtigungen.", clearAll: "Alle löschen" },
     security: { title: "Sicherheitsupdate", desc: "Wir haben unsere Sicherheitsstandards aktualisiert. Bitte ändern Sie Ihr Passwort, um fortzufahren.", currentPass: "Aktuelles Passwort", newPass: "Neues Passwort", confirmPass: "Neues Passwort bestätigen", sendCode: "Code via E-Mail senden", enterCode: "E-Mail Bestätigungscode", cancel: "Abbrechen", confirmBtn: "Bestätigen & Ändern", secTitle: "Passwort & Sicherheit", oauthMsg: "Sie sind über einen Drittanbieter (Google/Facebook) angemeldet. Passwortänderungen sind hier nicht verfügbar.", sendOtpBtn: "OTP per E-Mail senden" },
@@ -159,7 +174,7 @@ export const fallbackTranslations: TranslationData = {
     products: { title: "Store & Products", subtitle: "Professional care for home" }, 
     contact: { title: "Contact Us", subtitle: "Visit us", addressLabel: "Address", address: "Manggasse 6, 97421 Schweinfurt", phoneLabel: "Phone", phone: "+49 176 42980985", hoursLabel: "Opening Hours", hours: [ { days: "Monday - Saturday", time: "9:00 AM - 7:00 PM" }, { days: "Sunday", time: "Closed" } ], socialLabel: "Social Media" }, 
     auth: { loginTitle: "Login", loginSub: "Please log in to book an appointment.", email: "Email Address", pass: "Password", loginBtn: "Sign In", register: "Or create an account", social: "Continue with Social", noAccount: "Don't have an account?", haveAccount: "Already have an account?", registerTitle: "Create Account", resetPassBtn: "Forgot Password?", passStrength: "Password Strength:", weak: "Weak", medium: "Medium", strong: "Strong", ruleLength: "At least 8 characters", ruleUpper: "One uppercase letter", ruleLower: "One lowercase letter", ruleNum: "One number", ruleSpec: "One special character" }, 
-    booking: { title: "Book Appointment", subtitle: "Select your stylist.", quote: "Your perfect look begins here.", name: "Full Name", phone: "Phone", service: "Service", stylist: "Select Stylist", stylistAny: "Any (First Available)", stylistOptions: ["Any", "Rebo (Owner)", "Anna", "Marcus"], requestsLabel: "Special Requests / Notes (Optional)", date: "Date", time: "Time", dsgvoNote: "By submitting, you agree to GDPR processing.", smsNote: "Receive SMS reminder 24h before appointment.", reward: "Loyalty Bonus", rewardDesc: "You reached 10 haircuts! Want to apply a 50% discount to this booking?", submit: "Confirm Booking", success: "Request sent! We have emailed you a confirmation receipt.", refImage: "Reference Image (Optional)", totalDuration: "Total Duration:", pickDateFirst: "Please select a date first.", bookNew: "Request new appointment", waitlistLabel: "No suitable time?", joinWaitlistBtn: "Join Waitlist", addGuest: "+ Add Person / Child", groupNotice: "Group bookings are manually reviewed. Send us your requested time and we'll be in touch!", prefTime: "Preferred Time", guestName: "Name", guestAge: "Age", guestPhone: "Phone (if >14 yrs)" }, 
+    booking: { title: "Book Appointment", subtitle: "Select your stylist.", quote: "Your perfect look begins here.", name: "Full Name", phone: "Phone", service: "Service", stylist: "Select Stylist", stylistAny: "Any (First Available)", stylistOptions: ["Any", "Rebo (Owner)", "Anna", "Marcus"], requestsLabel: "Special Requests / Notes (Optional)", date: "Date", time: "Time", dsgvoNote: "By submitting, you agree to GDPR processing.", smsNote: "Receive SMS reminder 24h before appointment.", reward: "Loyalty Bonus", rewardDesc: "You reached 10 haircuts! Want to apply a 50% discount to this booking?", submit: "Confirm Booking", success: "Request sent! We have emailed you a confirmation receipt.", refImage: "Reference Image (Optional)", totalDuration: "Total Duration:", pickDateFirst: "Please select a date first.", bookNew: "Request new appointment", waitlistLabel: "No suitable time?", joinWaitlistBtn: "Join Waitlist", noSlotsFit: "There is no free slot left on this day where all selected services finish before closing time (7:00 pm).", totalDurationLabel: "Total duration", nextAvailable: "Next available slot:", takeSlotBtn: "Book this slot", pastDateError: "Appointments in the past cannot be booked.", noSlotFound: "Unfortunately there is no suitable slot in the coming weeks. Please join the waitlist or give us a call.", addGuest: "+ Add Person / Child", groupNotice: "Group bookings are manually reviewed. Send us your requested time and we'll be in touch!", prefTime: "Preferred Time", guestName: "Name", guestAge: "Age", guestPhone: "Phone (if >14 yrs)" }, 
     profile: { title: "My Profile", pointsTitle: "Your Loyalty Points", pointsDesc: "Collect 10 points for 50% off your next cut!", historyTitle: "Your Visit History", upcomingTitle: "Upcoming Appointments", notesLabel: "Stylist Notes:", noHistory: "No appointments yet.", saveNote: "Save Note", welcome: "Welcome back", overview: "Overview", settings: "Settings", editProfile: "Edit Profile", contactData: "Contact Data", noPhone: "No phone number saved. Please add in settings.", acceptTime: "Accept Time", cancel: "Cancel", pending: "Pending", completed: "Completed", newProposal: "New appointment proposal from salon:" }, 
     notifications: { title: "Notifications", empty: "No notifications.", clearAll: "Clear All" },
     security: { title: "Security Update", desc: "We updated our security standards. Please change your password to continue.", currentPass: "Current Password", newPass: "New Password", confirmPass: "Confirm New Password", sendCode: "Send code via E-Mail", enterCode: "E-Mail verification code", cancel: "Cancel", confirmBtn: "Confirm & Change", secTitle: "Password & Security", oauthMsg: "You are logged in via a third party (Google/Facebook). Password changes are not available here.", sendOtpBtn: "Send OTP via E-Mail" },
@@ -184,7 +199,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [productsDB, setProductsDB] = useState<ProductItem[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [userAlerts, setUserAlerts] = useState<Alert[]>([]);
+  const [adminAlerts, setAdminAlerts] = useState<Alert[]>([]);
+  const alerts = [...userAlerts, ...adminAlerts];
   const [waitlist, setWaitlist] = useState<WaitlistItem[]>([]);
   
   // Phase 4 Dynamic State
@@ -210,16 +227,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const markAlertRead = async (id: string) => {
     await updateDoc(doc(db, 'alerts', id), { isRead: true });
-    setAlerts(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
+    setUserAlerts(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
+    setAdminAlerts(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
   };
 
   const clearAlerts = async () => {
     if (!currentUser) return;
-    const userAlerts = alerts.filter(a => a.userId === currentUser.id);
-    for (const a of userAlerts) {
+    for (const a of alerts) {
       await deleteDoc(doc(db, 'alerts', a.id));
     }
-    setAlerts(prev => prev.filter(a => a.userId !== currentUser.id));
+    setUserAlerts([]);
+    setAdminAlerts([]);
   };
 
   useEffect(() => {
@@ -284,14 +302,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setAppointments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment)));
         });
 
-        unsubAlerts = onSnapshot(collection(db, 'alerts'), (snap) => {
-          setAlerts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Alert)));
+        // Security rules only allow reading your own alerts, so the query must be scoped to match
+        unsubAlerts = onSnapshot(query(collection(db, 'alerts'), where('userId', '==', user.uid)), (snap) => {
+          setUserAlerts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Alert)));
         });
       } else {
         setCurrentUser(null);
         setIsAdminAuth(false);
         setAppointments([]);
-        setAlerts([]);
+        setUserAlerts([]);
         if (unsubUser) { unsubUser(); unsubUser = null; }
         if (unsubAppts) { unsubAppts(); unsubAppts = null; }
         if (unsubAlerts) { unsubAlerts(); unsubAlerts = null; }
@@ -339,8 +358,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let unsubUsersDB: (() => void) | null = null;
     let unsubWaitlist: (() => void) | null = null;
+    let unsubAdminAlerts: (() => void) | null = null;
     
     if (isAdminAuth) {
+      let isInitialSnapshot = true;
+      unsubAdminAlerts = onSnapshot(query(collection(db, 'alerts'), where('userId', '==', ADMIN_ALERT_USER_ID)), (snap) => {
+        setAdminAlerts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Alert)));
+        // Surface new booking requests in the OS notification center while the site is open
+        if (!isInitialSnapshot && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          snap.docChanges().filter(c => c.type === 'added').forEach(c => {
+            new Notification('REBO SALON', { body: (c.doc.data() as Alert).message, icon: '/favicon.ico', tag: c.doc.id });
+          });
+        }
+        isInitialSnapshot = false;
+      });
       unsubUsersDB = onSnapshot(collection(db, 'users'), (snap) => {
         setUsersDB(snap.docs.map(d => ({ ...d.data() } as UserProfile)));
       });
@@ -350,11 +381,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else {
       setUsersDB([]);
       setWaitlist([]);
+      setAdminAlerts([]);
     }
     
     return () => { 
       if (unsubUsersDB) unsubUsersDB(); 
       if (unsubWaitlist) unsubWaitlist();
+      if (unsubAdminAlerts) unsubAdminAlerts();
     };
   }, [isAdminAuth]);
 
@@ -455,10 +488,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (generalSettings.holidays && generalSettings.holidays.includes(date)) {
         return initialSlots.map(s => ({ ...s, isBooked: true }));
     }
+    // No back-dated bookings; YYYY-MM-DD strings compare correctly as text
+    if (date < toLocalDateStr(new Date()) || CLOSED_WEEKDAYS.includes(new Date(`${date}T00:00:00`).getDay())) {
+        return initialSlots.map(s => ({ ...s, isBooked: true }));
+    }
+
+    // Hide start times whose services would run past closing, and times already passed today
+    const now = new Date();
+    const nowMins = date === toLocalDateStr(now) ? now.getHours() * 60 + now.getMinutes() : -1;
+    const fittingSlots = initialSlots.filter(slot => {
+      const slotMins = timeToMins(slot.time);
+      return slotMins + requiredDuration <= CLOSING_TIME_MINS && slotMins > nowMins;
+    });
 
     const realStylists = stylistsDB.length > 0 ? stylistsDB.map(s => s.name) : ["Rebo (Inhaber)", "Anna", "Marcus"];
 
-    return initialSlots.map(slot => {
+    return fittingSlots.map(slot => {
       const slotMins = timeToMins(slot.time);
       
       let isBooked = false;
@@ -493,6 +538,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       return { ...slot, isBooked };
     });
+  };
+
+  // First free slot on a later day that fits the whole booking before closing time
+  const findNextAvailableSlot = (fromDate: string, stylist: string, requiredDuration: number) => {
+    const day = new Date(`${fromDate}T00:00:00`);
+    for (let i = 0; i < NEXT_SLOT_SEARCH_DAYS; i++) {
+      day.setDate(day.getDate() + 1);
+      const date = toLocalDateStr(day);
+      const slot = getAvailableSlots(date, stylist, requiredDuration).find(s => !s.isBooked);
+      if (slot) return { date, slot };
+    }
+    return null;
   };
 
   const loginOAuth = async (providerName: 'Google' | 'Facebook') => {
@@ -660,6 +717,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) return;
     
     const docRef = await addDoc(collection(db, 'appointments'), appt);
+
+    // Notify the salon in the admin notification bell; a failure here must not block the booking
+    try {
+      await addDoc(collection(db, 'alerts'), { userId: ADMIN_ALERT_USER_ID, message: `Neue Terminanfrage: ${appt.name} – ${appt.date} um ${appt.time} Uhr (${appt.services.join(', ')})`, isRead: false, link: 'admin', createdAt: Date.now() });
+    } catch (err) { console.error('Admin alert failed', err); }
+
     const userRef = doc(db, 'users', currentUser.id);
     
     if (appt.usedReward) await updateDoc(userRef, { haircutCount: Math.max(0, currentUser.haircutCount - 10) });
@@ -836,7 +899,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lang, setLang, changeLanguage, isTranslatingUI, page, setPage: setPageRouter, t, updateTranslation,
       isAdminAuth, currentUser, usersDB, updateUserNotes, loginOAuth, loginEmail, registerEmail, resetPassword, updateUserPassword, logout,
       servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock,
-      appointments, addAppointment, addAdminAppointment, updateAppointmentStatus, notifications, addNotification, getAvailableSlots,
+      appointments, addAppointment, addAdminAppointment, updateAppointmentStatus, notifications, addNotification, getAvailableSlots, findNextAvailableSlot,
       waitlist, addToWaitlist, removeFromWaitlist, notifyWaitlist, resendConfirmation,
       stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings,
       alerts, markAlertRead, clearAlerts,

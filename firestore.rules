@@ -70,8 +70,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /alerts/{alertId} {
-      allow read: if isOwner(resource.data.userId);
-      allow write: if isAdmin() || isOwner(request.resource.data.userId);
+      // userId 'admin' is the shared inbox for the salon (e.g. new booking requests):
+      // any signed-in customer may drop an unread alert there, only admins can read it.
+      allow read: if isOwner(resource.data.userId) || (resource.data.userId == 'admin' && isAdmin());
+      allow create: if isAdmin() || isOwner(request.resource.data.userId) || (
+        request.auth != null
+        && request.resource.data.userId == 'admin'
+        && request.resource.data.isRead == false
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 500
+      );
+      allow update, delete: if isAdmin() || isOwner(resource.data.userId);
     }
     match /translations/{document=**} {
       allow read: if true;
