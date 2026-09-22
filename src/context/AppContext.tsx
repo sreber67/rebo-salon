@@ -40,7 +40,7 @@ export type GeneralSettings = {
   walkinWaitTime?: string;
 };
 
-export type Alert = { id: string; userId: string; message: string; isRead: boolean; link: Page; createdAt: number };
+export type Alert = { id: string; userId: string; message: string; isRead: boolean; link: Page; createdAt: number; appointmentId?: string };
 export type ServiceItem = { id: string; name: string; price: string; oldPrice?: string; durationMins: number };
 export type ProductItem = { id: string; name: string; price: string; desc: string; image: string; stockCount?: number; };
 export type Notification = { id: number; message: string; type: 'success' | 'info' | 'error' };
@@ -94,6 +94,7 @@ export interface AppContextType {
   waitlist: WaitlistItem[]; addToWaitlist: (item: Omit<WaitlistItem, 'id' | 'createdAt'>) => Promise<void>; removeFromWaitlist: (id: string) => Promise<void>; notifyWaitlist: (item: WaitlistItem) => Promise<void>; resendConfirmation: (id: string) => Promise<void>;
   notifications: Notification[]; addNotification: (msg: string, type?: 'success' | 'info' | 'error') => void;
   alerts: Alert[]; markAlertRead: (id: string) => Promise<void>; clearAlerts: () => Promise<void>;
+  focusedAppointmentId: string | null; setFocusedAppointmentId: (id: string | null) => void;
   getAvailableSlots: (date: string, stylist: string, requiredDuration?: number) => TimeSlot[];
   findNextAvailableSlot: (fromDate: string, stylist: string, requiredDuration: number) => { date: string; slot: TimeSlot } | null;
   getTranslatedServices: () => ServiceItem[];
@@ -202,6 +203,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [userAlerts, setUserAlerts] = useState<Alert[]>([]);
   const [adminAlerts, setAdminAlerts] = useState<Alert[]>([]);
   const alerts = [...userAlerts, ...adminAlerts];
+  // Appointment the admin panel should scroll to and highlight (set from a notification click)
+  const [focusedAppointmentId, setFocusedAppointmentId] = useState<string | null>(null);
   const [waitlist, setWaitlist] = useState<WaitlistItem[]>([]);
   
   // Phase 4 Dynamic State
@@ -720,7 +723,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // Notify the salon in the admin notification bell; a failure here must not block the booking
     try {
-      await addDoc(collection(db, 'alerts'), { userId: ADMIN_ALERT_USER_ID, message: `Neue Terminanfrage: ${appt.name} – ${appt.date} um ${appt.time} Uhr (${appt.services.join(', ')})`, isRead: false, link: 'admin', createdAt: Date.now() });
+      await addDoc(collection(db, 'alerts'), { userId: ADMIN_ALERT_USER_ID, message: `Neue Terminanfrage: ${appt.name} – ${appt.date} um ${appt.time} Uhr (${appt.services.join(', ')})`, isRead: false, link: 'admin', appointmentId: docRef.id, createdAt: Date.now() });
     } catch (err) { console.error('Admin alert failed', err); }
 
     const userRef = doc(db, 'users', currentUser.id);
@@ -902,7 +905,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       appointments, addAppointment, addAdminAppointment, updateAppointmentStatus, notifications, addNotification, getAvailableSlots, findNextAvailableSlot,
       waitlist, addToWaitlist, removeFromWaitlist, notifyWaitlist, resendConfirmation,
       stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings,
-      alerts, markAlertRead, clearAlerts,
+      alerts, markAlertRead, clearAlerts, focusedAppointmentId, setFocusedAppointmentId,
       getTranslatedServices, getTranslatedProducts, getTranslatedStylists, getTranslatedGeneralSettings
     }}>
       {children}

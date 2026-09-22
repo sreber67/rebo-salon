@@ -80,7 +80,7 @@ function LanguageSelector() {
 }
 
 function NotificationBell() {
-  const { alerts, currentUser, markAlertRead, clearAlerts, setPage, t } = useApp();
+  const { alerts, currentUser, markAlertRead, clearAlerts, setPage, setFocusedAppointmentId, t } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   
   if (!currentUser) return null;
@@ -103,7 +103,7 @@ function NotificationBell() {
           <div className="max-h-64 overflow-y-auto custom-scrollbar">
             {userAlerts.length === 0 ? <p className="text-xs text-gray-500 px-2 italic pb-2">{notifTrans?.empty || 'Keine'}</p> : 
               userAlerts.map(a => (
-                <div key={a.id} onClick={() => { markAlertRead(a.id); setPage(a.link); setIsOpen(false); }} className={`p-3 border-b border-gray-800 cursor-pointer transition-colors rounded-sm ${!a.isRead ? 'bg-white/5' : 'hover:bg-white/5'}`}>
+                <div key={a.id} onClick={() => { markAlertRead(a.id); if (a.appointmentId) setFocusedAppointmentId(a.appointmentId); setPage(a.link); setIsOpen(false); }} className={`p-3 border-b border-gray-800 cursor-pointer transition-colors rounded-sm ${!a.isRead ? 'bg-white/5' : 'hover:bg-white/5'}`}>
                   <p className={`text-xs ${!a.isRead ? 'text-white font-bold' : 'text-gray-400'}`}>{a.message}</p>
                   <p className="text-[9px] text-gray-600 mt-1 uppercase tracking-widest">{new Date(a.createdAt).toLocaleString()}</p>
                 </div>
@@ -579,8 +579,17 @@ function ProfileViewLocal() {
 }
 
 function AdminView() {
-  const { appointments, updateAppointmentStatus, servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock, t, usersDB, updateUserNotes, addAdminAppointment, waitlist, notifyWaitlist, removeFromWaitlist, resendConfirmation, stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings, addNotification, getTranslatedServices, getTranslatedStylists, getTranslatedProducts } = useApp();
+  const { appointments, updateAppointmentStatus, servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock, t, usersDB, updateUserNotes, addAdminAppointment, waitlist, notifyWaitlist, removeFromWaitlist, resendConfirmation, stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings, addNotification, getTranslatedServices, getTranslatedStylists, getTranslatedProducts, focusedAppointmentId, setFocusedAppointmentId } = useApp();
   const [tab, setTab] = useState<'appointments' | 'calendar' | 'services' | 'products' | 'clients' | 'waitlist' | 'team' | 'settings' | 'gallery'>('appointments');
+
+  // Opened from a notification: show the requests tab, scroll to that appointment, then drop the highlight
+  useEffect(() => {
+    if (!focusedAppointmentId) return;
+    const showTab = requestAnimationFrame(() => setTab('appointments'));
+    const scroll = setTimeout(() => document.getElementById(`appt-${focusedAppointmentId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+    const clear = setTimeout(() => setFocusedAppointmentId(null), 5000);
+    return () => { cancelAnimationFrame(showTab); clearTimeout(scroll); clearTimeout(clear); };
+  }, [focusedAppointmentId, setFocusedAppointmentId]);
   const [editingNotes, setEditingNotes] = useState<{[key:string]: string}>({});
   const [editingClientNotes, setEditingClientNotes] = useState<{[key:string]: string}>({});
   const [searchClient, setSearchClient] = useState('');
@@ -1168,7 +1177,7 @@ function AdminView() {
               {pendingAppts.map((a: any) => {
                 const sList = Array.isArray(a.services) ? a.services.join(', ') : (a as any).service || 'Leistung';
                 return (
-                  <div key={a.id} className="bg-black/80 p-5 border border-red-500/20 rounded-sm">
+                  <div key={a.id} id={`appt-${a.id}`} className={`bg-black/80 p-5 border rounded-sm transition-all duration-500 ${focusedAppointmentId === a.id ? 'border-[#d4af37] ring-2 ring-[#d4af37]/60' : 'border-red-500/20'}`}>
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-bold text-lg">
@@ -1226,7 +1235,7 @@ function AdminView() {
               {otherAppts.map((a: any) => {
                 const sList = Array.isArray(a.services) ? a.services.join(', ') : (a as any).service || 'Leistung';
                 return (
-                  <div key={a.id} className="bg-black/50 p-5 border border-white/10 rounded-sm">
+                  <div key={a.id} id={`appt-${a.id}`} className={`bg-black/50 p-5 border rounded-sm transition-all duration-500 ${focusedAppointmentId === a.id ? 'border-[#d4af37] ring-2 ring-[#d4af37]/60' : 'border-white/10'}`}>
                      <div className="flex flex-col md:flex-row justify-between gap-4">
                        <div>
                          <p className="font-bold text-lg">

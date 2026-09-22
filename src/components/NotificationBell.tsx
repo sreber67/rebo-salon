@@ -4,7 +4,7 @@ import { useApp } from '@/context/AppContext';
 import { fallbackTranslations, ADMIN_ALERT_USER_ID } from '@/context/AppContext';
 
 export function NotificationBell() {
-  const { alerts, currentUser, markAlertRead, clearAlerts, setPage, t } = useApp();
+  const { alerts, currentUser, markAlertRead, clearAlerts, setPage, setFocusedAppointmentId, t } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   
   if (!currentUser) return null;
@@ -27,7 +27,7 @@ export function NotificationBell() {
           <div className="max-h-64 overflow-y-auto custom-scrollbar">
             {userAlerts.length === 0 ? <p className="text-xs text-gray-500 px-2 italic pb-2">{notifTrans?.empty || 'Keine'}</p> : 
               userAlerts.map(a => (
-                <div key={a.id} onClick={() => { markAlertRead(a.id); setPage(a.link); setIsOpen(false); }} className={`p-3 border-b border-gray-800 cursor-pointer transition-colors rounded-sm ${!a.isRead ? 'bg-white/5' : 'hover:bg-white/5'}`}>
+                <div key={a.id} onClick={() => { markAlertRead(a.id); if (a.appointmentId) setFocusedAppointmentId(a.appointmentId); setPage(a.link); setIsOpen(false); }} className={`p-3 border-b border-gray-800 cursor-pointer transition-colors rounded-sm ${!a.isRead ? 'bg-white/5' : 'hover:bg-white/5'}`}>
                   <p className={`text-xs ${!a.isRead ? 'text-white font-bold' : 'text-gray-400'}`}>{a.message}</p>
                   <p className="text-[9px] text-gray-600 mt-1 uppercase tracking-widest">{new Date(a.createdAt).toLocaleString()}</p>
                 </div>
