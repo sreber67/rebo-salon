@@ -286,7 +286,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
-    let unsubAppts: (() => void) | null = null;
     let unsubAlerts: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
@@ -304,10 +303,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
-        unsubAppts = onSnapshot(collection(db, 'appointments'), (snap) => {
-          setAppointments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment)));
-        });
-
         // Security rules only allow reading your own alerts, so the query must be scoped to match
         unsubAlerts = onSnapshot(query(collection(db, 'alerts'), where('userId', '==', user.uid)), (snap) => {
           setUserAlerts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Alert)));
@@ -318,7 +313,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setAppointments([]);
         setUserAlerts([]);
         if (unsubUser) { unsubUser(); unsubUser = null; }
-        if (unsubAppts) { unsubAppts(); unsubAppts = null; }
         if (unsubAlerts) { unsubAlerts(); unsubAlerts = null; }
       }
     });
@@ -355,11 +349,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return () => { 
       unsubAuth(); unsubTrans(); unsubSrv(); unsubProd(); unsubStylists(); unsubSettings();
-      if (unsubAppts) unsubAppts(); 
       if (unsubAlerts) unsubAlerts(); 
       if (unsubUser) unsubUser(); 
     };
   }, []);
+
+  // Admins see every booking; security rules only let customers read their own,
+  // so their query must be scoped to match (others' booked times come from /api/availability)
+  const currentUserId = currentUser?.id;
+  useEffect(() => {
+    if (!currentUserId) return;
+    const appointmentsQuery = isAdminAuth
+      ? collection(db, 'appointments')
+      : query(collection(db, 'appointments'), where('userId', '==', currentUserId));
+    return onSnapshot(appointmentsQuery, (snap) => {
+      setAppointments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment)));
+    });
+  }, [currentUserId, isAdminAuth]);
 
   useEffect(() => {
     let unsubUsersDB: (() => void) | null = null;

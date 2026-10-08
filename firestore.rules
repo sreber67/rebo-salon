@@ -88,6 +88,11 @@ service cloud.firestore {
       );
       allow update, delete: if isAdmin() || isOwner(resource.data.userId);
     }
+    match /waitlist/{itemId} {
+      // Customers put themselves on the list; only the salon sees or clears it
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isAdmin();
+    }
     match /translations/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
