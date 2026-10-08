@@ -54,7 +54,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de" className="scroll-smooth">
+    // The CCM19 cookie banner adds scrollbar-size styles to <html> before React hydrates
+    <html lang="de" className="scroll-smooth" suppressHydrationWarning>
       <head>
         <Script
           id="schema-local-business"
