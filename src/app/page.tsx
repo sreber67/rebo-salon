@@ -9,6 +9,7 @@ import { DataExportButton, DataExportModal } from '@/components/DataExport';
 import { DeleteAccountButton, AccountDeletionModal } from '@/components/AccountDeletion';
 import { ProfileView } from '@/components/ProfileView';
 import { Navbar } from '@/components/Navbar';
+import { BookingCalendar } from '@/components/BookingCalendar';
 import { getInternalHeaders } from '@/lib/validation';
 import { describeSchedule, WEEKDAY_ORDER, CLOSED_WEEKDAYS, SALON_OPEN_MINS, CLOSING_TIME_MINS, minsToTime, timeToMins, WeeklySchedule } from '@/lib/schedule';
 import { AppProvider, useApp, Appointment, ServiceItem, ProductItem, fallbackTranslations, initialSlots, ADMIN_ALERT_USER_ID, toLocalDateStr, TimeSlot, UserProfile, WaitlistItem, StylistItem, Guest } from '@/context/AppContext';
@@ -1522,7 +1523,7 @@ function AdminView() {
 
 // --- PUBLIC BOOKING VIEW ---
 function BookingView() {
-  const { t, lang, currentUser, addAppointment, servicesDB, getAvailableSlots, findNextAvailableSlot, refreshBookedTimes, addNotification, addToWaitlist, stylistsDB, getTranslatedServices, getTranslatedStylists } = useApp();
+  const { t, lang, currentUser, addAppointment, servicesDB, getAvailableSlots, findNextAvailableSlot, refreshBookedTimes, addNotification, addToWaitlist, stylistsDB, generalSettings, getTranslatedServices, getTranslatedStylists } = useApp();
   const [submitted, setSubmitted] = useState(false);
   
   const [bookingName, setBookingName] = useState("");
@@ -1550,6 +1551,12 @@ function BookingView() {
   // Newer booking texts may be missing from translations stored in Firestore
   const bookingText = (key: string): string => t.booking?.[key] || fallbackTranslations[lang]?.booking?.[key] || fallbackTranslations.de.booking[key];
   const formatDuration = (mins: number) => mins >= 60 ? `${Math.floor(mins / 60)} h${mins % 60 ? ` ${mins % 60} min` : ''}` : `${mins} min`;
+
+  // Days the calendar lets the customer pick: the chosen stylist has a free slot that fits the services.
+  // Group requests are arranged by hand, so only closed days are blocked for them.
+  const isDateSelectable = (date: string) => guests.length > 0
+    ? !generalSettings.holidays?.includes(date) && !CLOSED_WEEKDAYS.includes(new Date(`${date}T00:00:00`).getDay())
+    : getAvailableSlots(date, stylist, totalDuration || 30).some(s => !s.isBooked);
 
   // Ignore the chosen time once it no longer fits (e.g. a longer service was added)
   const activeSlot = openSlots.some(s => s.id === selectedSlot && !s.isBooked) ? selectedSlot : "";
@@ -1632,6 +1639,8 @@ function BookingView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || selectedServices.length === 0) return;
+    // The custom calendar isn't a form field, so "required" no longer guards the date
+    if (!bookingDate) { addNotification(bookingText('pickDateFirst'), "error"); return; }
     
     if (guests.length === 0 && !activeSlot) return;
     const now = new Date();
@@ -1834,7 +1843,13 @@ function BookingView() {
               <div>
                 <label className="block text-xs uppercase text-gray-400 mb-3">{t.booking.date} {guests.length === 0 && `& ${t.booking.time}`} *</label>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <input required type="date" min={toLocalDateStr(new Date())} value={bookingDate} onChange={e=>{setBookingDate(e.target.value); setSelectedSlot("");}} className="sm:w-[40%] bg-black border border-white/20 p-4 rounded-sm text-white" />
+                  <BookingCalendar
+                    value={bookingDate}
+                    onChange={date => { setBookingDate(date); setSelectedSlot(""); }}
+                    isSelectable={isDateSelectable}
+                    locale={lang}
+                    labels={{ placeholder: bookingText('pickDate'), available: bookingText('calendarAvailable'), unavailable: bookingText('calendarUnavailable'), prevMonth: bookingText('prevMonth'), nextMonth: bookingText('nextMonth') }}
+                  />
                   
                   {bookingDate ? (
                     <div className="flex flex-col flex-1 gap-4">
