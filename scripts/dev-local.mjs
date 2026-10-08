@@ -64,7 +64,7 @@ async function seed() {
 
   for (const a of Object.values(ACCOUNTS)) {
     await auth.createUser({ uid: a.uid, email: a.email, password: PASSWORD, displayName: a.name });
-    await db.doc(`users/${a.uid}`).set({ id: a.uid, name: a.name, email: a.email, phone: '+491701234567', haircutCount: 0, role: a.role });
+    await db.doc(`users/${a.uid}`).set({ id: a.uid, name: a.name, email: a.email, phone: '+491701234567', haircutCount: 0, role: a.role, hasUpdatedPassword: true });
   }
 
   const services = [
