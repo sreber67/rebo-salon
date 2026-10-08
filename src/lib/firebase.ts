@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, GoogleAuthProvider, FacebookAuthProvider } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, Auth, GoogleAuthProvider, FacebookAuthProvider, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAnalytics, isSupported, Analytics } from 'firebase/analytics';
 
 const firebaseConfig = {
@@ -12,6 +12,9 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
+
+// Local test mode (npm run dev:local): talk to the Firebase emulators on this machine, never the live project
+export const USE_EMULATOR = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
 
 // Singleton pattern for Firebase client app
 let firebaseApp: FirebaseApp | null = null;
@@ -42,6 +45,7 @@ export function getAuthInstance(): Auth {
     firebaseAuth = getAuth(getFirebaseApp());
     // Set language for auth emails
     firebaseAuth.languageCode = 'de';
+    if (USE_EMULATOR) connectAuthEmulator(firebaseAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
   }
   return firebaseAuth;
 }
@@ -52,6 +56,7 @@ export function getAuthInstance(): Auth {
 export function getDbInstance(): Firestore {
   if (!firebaseDb) {
     firebaseDb = getFirestore(getFirebaseApp());
+    if (USE_EMULATOR) connectFirestoreEmulator(firebaseDb, '127.0.0.1', 8080);
   }
   return firebaseDb;
 }

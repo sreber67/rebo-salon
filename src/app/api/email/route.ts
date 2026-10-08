@@ -10,6 +10,12 @@ import { validateRequest, emailRequestSchema, createAuditLog, logAudit } from '@
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
 export async function POST(req: NextRequest) {
+  // Local test mode (npm run dev:local): never contact real customers or the salon
+  if (process.env.FIRESTORE_EMULATOR_HOST) {
+    console.log('[local test mode] Email not sent:', await req.text());
+    return NextResponse.json({ success: true, skipped: 'emulator' });
+  }
+
   const startTime = Date.now();
   let userId: string | undefined;
   let userRole: string | undefined;

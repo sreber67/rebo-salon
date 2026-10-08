@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
+// Local test mode (npm run dev:local) talks to the Firebase emulators on this machine
+const emulatorHosts = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true'
+  ? ' http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080'
+  : '';
+
 const nextConfig = {
+  // Local test mode keeps its own build folder so it can run next to a normal dev server
+  ...(process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true' ? { distDir: '.next-local' } : {}),
   // Security Headers
   async headers() {
     return [
@@ -16,7 +23,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.ccm19.de",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: https: blob: https://images.unsplash.com https://firebasestorage.googleapis.com https://res.cloudinary.com https://*.ccm19.de",
-              "connect-src 'self' https://api.cloudinary.com https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.mymemory.translated.net https://api-free.deepl.com https://api.deepl.com https://www.google-analytics.com https://region1.google-analytics.com wss://*.firebaseio.com https://cloud.ccm19.de https://*.ccm19.de",
+              "connect-src 'self' https://api.cloudinary.com https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.mymemory.translated.net https://api-free.deepl.com https://api.deepl.com https://www.google-analytics.com https://region1.google-analytics.com wss://*.firebaseio.com https://cloud.ccm19.de https://*.ccm19.de" + emulatorHosts,
               // CRITICAL FIX FOR FIREBASE AUTH:
              "frame-src 'self' https://accounts.google.com https://www.facebook.com https://rebo-salon.firebaseapp.com https://maps.google.com https://www.google.com https://*.ccm19.de",
               "frame-ancestors 'none'",

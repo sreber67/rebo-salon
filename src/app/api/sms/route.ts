@@ -7,6 +7,12 @@ import { validateRequest, smsRequestSchema, createAuditLog, logAudit } from '@/l
 const normalizePhone = (p: string) => p.replace(/\s+/g, '');
 
 export async function POST(req: NextRequest) {
+  // Local test mode (npm run dev:local): never contact real customers or the salon
+  if (process.env.FIRESTORE_EMULATOR_HOST) {
+    console.log('[local test mode] SMS not sent:', await req.text());
+    return NextResponse.json({ success: true, skipped: 'emulator' });
+  }
+
   const startTime = Date.now();
   let userId: string | undefined;
   let userRole: string | undefined;

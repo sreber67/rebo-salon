@@ -23,3 +23,9 @@ node_modules/
 
 .vercel
 .env*
+
+# local test mode (npm run dev:local)
+/.next-local/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

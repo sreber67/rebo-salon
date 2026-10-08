@@ -19,6 +19,13 @@ function getAdminApp(): App {
     return adminApp;
   }
 
+  // Local test mode: the Admin SDK follows FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST,
+  // and we skip the real service account so nothing can reach the live project
+  if (process.env.FIRESTORE_EMULATOR_HOST) {
+    adminApp = initializeApp({ projectId: process.env.GCLOUD_PROJECT });
+    return adminApp;
+  }
+
   const base64Key = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
   if (!base64Key) {
     throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 is not set in environment variables');
