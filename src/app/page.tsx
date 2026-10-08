@@ -10,6 +10,7 @@ import { DeleteAccountButton, AccountDeletionModal } from '@/components/AccountD
 import { ProfileView } from '@/components/ProfileView';
 import { Navbar } from '@/components/Navbar';
 import { getInternalHeaders } from '@/lib/validation';
+import { describeSchedule, WEEKDAY_ORDER, CLOSED_WEEKDAYS, SALON_OPEN_MINS, CLOSING_TIME_MINS, minsToTime, timeToMins, WeeklySchedule } from '@/lib/schedule';
 import { AppProvider, useApp, Appointment, ServiceItem, ProductItem, fallbackTranslations, initialSlots, ADMIN_ALERT_USER_ID, toLocalDateStr, TimeSlot, UserProfile, WaitlistItem, StylistItem, Guest } from '@/context/AppContext';
 
 const countryCodes = [
@@ -578,8 +579,111 @@ function ProfileViewLocal() {
   );
 }
 
+// --- ADMIN: STYLIST WORKING HOURS & DAYS OFF ---
+function StylistScheduleEditor({ stylist }: { stylist: StylistItem }) {
+  const { t, lang, updateStylist, addNotification } = useApp();
+  const text = (key: string, fallback: string): string => t.admin?.team?.[key] || fallback;
+  const salonDay = { start: minsToTime(SALON_OPEN_MINS), end: minsToTime(CLOSING_TIME_MINS) };
+  const startingDraft = (): WeeklySchedule => Array.from({ length: 7 }, (_, d) =>
+    stylist.weeklySchedule ? stylist.weeklySchedule[d] ?? null : (CLOSED_WEEKDAYS.includes(d) ? null : salonDay));
+  const [draft, setDraft] = useState<WeeklySchedule>(startingDraft);
+  const [dayOffInput, setDayOffInput] = useState('');
+  const today = toLocalDateStr(new Date());
+  const upcomingDaysOff = (stylist.daysOff || []).filter(d => d >= today).sort();
+
+  const dayName = (d: number) => {
+    try { return new Intl.DateTimeFormat(lang, { weekday: 'long' }).format(new Date(2024, 0, 7 + d)); }
+    catch { return ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][d]; }
+  };
+  const setDay = (d: number, value: WeeklySchedule[number]) => setDraft(draft.map((day, i) => i === d ? value : day));
+
+  const saveSchedule = async () => {
+    const invalid = draft.some(day => day && (timeToMins(day.start) >= timeToMins(day.end)
+      || timeToMins(day.start) < SALON_OPEN_MINS || timeToMins(day.end) > CLOSING_TIME_MINS));
+    if (invalid) {
+      addNotification(text('invalidHours', `Bitte gültige Zeiten zwischen ${salonDay.start} und ${salonDay.end} eingeben (Beginn vor Ende).`), 'error');
+      return;
+    }
+    await updateStylist(stylist.id, { weeklySchedule: draft });
+  };
+
+  const resetSchedule = async () => {
+    await updateStylist(stylist.id, { weeklySchedule: null });
+    setDraft(Array.from({ length: 7 }, (_, d) => CLOSED_WEEKDAYS.includes(d) ? null : salonDay));
+  };
+
+  const addDayOff = async () => {
+    if (!dayOffInput || upcomingDaysOff.includes(dayOffInput)) return;
+    // Past days off are dropped while we're writing anyway
+    await updateStylist(stylist.id, { daysOff: [...upcomingDaysOff, dayOffInput].sort() });
+    setDayOffInput('');
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-white/10 space-y-6">
+      <div>
+        <h5 className="text-xs uppercase font-bold text-gray-400 mb-1">{text('workingHours', 'Arbeitszeiten')}</h5>
+        <p className="text-xs text-gray-500 mb-3">
+          {stylist.weeklySchedule
+            ? text('scheduleHint', 'Kunden können diesen Stylisten nur zu diesen Zeiten buchen.')
+            : text('salonHoursHint', 'Noch keine eigenen Zeiten – bucht sich zu den normalen Öffnungszeiten.')}
+        </p>
+        <div className="space-y-2">
+          {WEEKDAY_ORDER.map(d => {
+            const day = draft[d];
+            const salonClosed = CLOSED_WEEKDAYS.includes(d);
+            return (
+              <div key={d} className="flex flex-wrap items-center gap-2 text-sm">
+                <label className="flex items-center gap-2 w-32 cursor-pointer">
+                  <input type="checkbox" disabled={salonClosed} checked={!!day} onChange={e => setDay(d, e.target.checked ? salonDay : null)} className="accent-[#d4af37] w-4 h-4" />
+                  <span className={day ? 'text-white' : 'text-gray-500'}>{dayName(d)}</span>
+                </label>
+                {salonClosed ? (
+                  <span className="text-xs text-gray-500 italic">{text('salonClosed', 'Salon geschlossen')}</span>
+                ) : day ? (
+                  <div className="flex items-center gap-2">
+                    <input type="time" step={1800} min={salonDay.start} max={salonDay.end} value={day.start} onChange={e => setDay(d, { ...day, start: e.target.value })} className="bg-black border border-white/20 p-2 rounded-sm text-white text-xs" />
+                    <span className="text-gray-500">–</span>
+                    <input type="time" step={1800} min={salonDay.start} max={salonDay.end} value={day.end} onChange={e => setDay(d, { ...day, end: e.target.value })} className="bg-black border border-white/20 p-2 rounded-sm text-white text-xs" />
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-500 italic">{text('dayOff', 'Frei')}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button type="button" onClick={saveSchedule} className="px-4 py-2 font-bold uppercase text-xs rounded-sm bg-[#d4af37] text-black hover:bg-white transition-colors">{text('saveSchedule', 'Arbeitszeiten speichern')}</button>
+          {stylist.weeklySchedule && (
+            <button type="button" onClick={resetSchedule} className="px-4 py-2 font-bold uppercase text-xs rounded-sm bg-white/10 text-white hover:bg-white hover:text-black transition-colors">{text('resetSchedule', 'Auf Öffnungszeiten zurücksetzen')}</button>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <h5 className="text-xs uppercase font-bold text-gray-400 mb-1">{text('daysOff', 'Urlaub / freie Tage')}</h5>
+        <p className="text-xs text-gray-500 mb-3">{text('daysOffHint', 'An diesen Tagen ist nur dieser Stylist nicht buchbar.')}</p>
+        <div className="flex gap-2 mb-3">
+          <input type="date" min={today} value={dayOffInput} onChange={e => setDayOffInput(e.target.value)} className="flex-1 bg-black border border-white/20 p-2 rounded-sm text-white text-xs" />
+          <button type="button" onClick={addDayOff} className="px-4 py-2 font-bold uppercase text-xs rounded-sm bg-white/10 text-white hover:bg-white hover:text-black transition-colors">{text('addDayOff', 'Hinzufügen')}</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {upcomingDaysOff.map(d => (
+            <span key={d} className="flex items-center gap-2 px-3 py-1 bg-black/40 border border-white/10 rounded-sm text-xs">
+              {d}
+              <button type="button" onClick={() => updateStylist(stylist.id, { daysOff: upcomingDaysOff.filter(x => x !== d) })} className="text-red-400 font-bold hover:underline">X</button>
+            </span>
+          ))}
+          {upcomingDaysOff.length === 0 && <p className="text-xs text-gray-500 italic">{text('noDaysOff', 'Keine freien Tage eingetragen.')}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminView() {
-  const { appointments, updateAppointmentStatus, servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock, t, usersDB, updateUserNotes, addAdminAppointment, waitlist, notifyWaitlist, removeFromWaitlist, resendConfirmation, stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings, addNotification, getTranslatedServices, getTranslatedStylists, getTranslatedProducts, focusedAppointmentId, setFocusedAppointmentId } = useApp();
+  const { lang, appointments, updateAppointmentStatus, servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock, t, usersDB, updateUserNotes, addAdminAppointment, waitlist, notifyWaitlist, removeFromWaitlist, resendConfirmation, stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings, addNotification, getTranslatedServices, getTranslatedStylists, getTranslatedProducts, focusedAppointmentId, setFocusedAppointmentId } = useApp();
   const [tab, setTab] = useState<'appointments' | 'calendar' | 'services' | 'products' | 'clients' | 'waitlist' | 'team' | 'settings' | 'gallery'>('appointments');
 
   // Opened from a notification: show the requests tab, scroll to that appointment, then drop the highlight
@@ -620,6 +724,8 @@ function AdminView() {
   const [walkInDuration, setWalkInDuration] = useState('60');
 
   const [stylistName, setStylistName] = useState('');
+  // Stylist whose working-hours editor is open in the Team tab
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [stylistServices, setStylistServices] = useState<string[]>([]);
   const [walkinWaitTimeInput, setWalkinWaitTimeInput] = useState('');
   const [holidayInput, setHolidayInput] = useState('');
@@ -946,15 +1052,26 @@ function AdminView() {
                </form>
              </div>
              <div className="space-y-3">
-                {translatedStylists.map(s => (
-                   <div key={s.id} className={`p-5 flex justify-between items-center border rounded-sm ${bgBorder}`}>
-                     <div>
-                       <p className="font-bold text-lg text-[#d4af37]">{s.name}</p>
-                       <p className="text-xs text-gray-400 mt-1">{s.services.length > 0 ? s.services.join(', ') : 'Alle Leistungen'}</p>
+                {translatedStylists.map(s => {
+                   const record = stylistsDB.find(x => x.id === s.id);
+                   const scheduleNote = record ? describeSchedule(record, lang) : '';
+                   return (
+                   <div key={s.id} className={`p-5 border rounded-sm ${bgBorder}`}>
+                     <div className="flex justify-between items-start gap-4">
+                       <div>
+                         <p className="font-bold text-lg text-[#d4af37]">{s.name}</p>
+                         <p className="text-xs text-gray-400 mt-1">{s.services.length > 0 ? s.services.join(', ') : 'Alle Leistungen'}</p>
+                         <p className="text-xs text-gray-300 mt-1">🕒 {scheduleNote || (t.admin?.team?.salonHours || 'Normale Öffnungszeiten')}</p>
+                       </div>
+                       <div className="flex flex-col items-end gap-2 shrink-0">
+                         <button onClick={() => setEditingScheduleId(editingScheduleId === s.id ? null : s.id)} className="text-[#d4af37] text-xs uppercase font-bold hover:underline">{t.admin?.team?.editSchedule || 'Arbeitszeiten'}</button>
+                         <button onClick={() => deleteStylist(s.id)} className="text-red-400 text-xs uppercase font-bold hover:underline">{t.admin?.team?.deleteBtn || 'Löschen'}</button>
+                       </div>
                      </div>
-                     <button onClick={() => deleteStylist(s.id)} className="text-red-400 text-xs uppercase font-bold hover:underline">{t.admin?.team?.deleteBtn || 'Löschen'}</button>
+                     {editingScheduleId === s.id && record && <StylistScheduleEditor key={record.id} stylist={record} />}
                    </div>
-                ))}
+                   );
+                })}
              </div>
           </div>
         )}
@@ -1405,8 +1522,7 @@ function AdminView() {
 
 // --- PUBLIC BOOKING VIEW ---
 function BookingView() {
-  const { t, lang, currentUser, addAppointment, servicesDB, getAvailableSlots, findNextAvailableSlot, addNotification, addToWaitlist, stylistsDB, getTranslatedServices, getTranslatedStylists } = useApp();
-  const addAppointmentTyped = addAppointment as (appt: Omit<Appointment, 'id'>) => Promise<import('firebase/firestore').DocumentReference | undefined>;
+  const { t, lang, currentUser, addAppointment, servicesDB, getAvailableSlots, findNextAvailableSlot, refreshBookedTimes, addNotification, addToWaitlist, stylistsDB, getTranslatedServices, getTranslatedStylists } = useApp();
   const [submitted, setSubmitted] = useState(false);
   
   const [bookingName, setBookingName] = useState("");
@@ -1444,8 +1560,20 @@ function BookingView() {
           if (selectedServices.length === 0) return true;
           if (!s.services || s.services.length === 0) return true;
           return selectedServices.every(srv => s.services.includes(srv.name));
-        }).map(s => s.name)]
+        }).map(s => stylistsDB.find(db => db.id === s.id)?.name || s.name)]
       : t.booking.stylistOptions;
+
+  // Options keep the stored stylist name; the label shows the translated name plus their working days/hours
+  const stylistLabel = (name: string) => {
+    const record = stylistsDB.find(s => s.name === name);
+    if (!record) return name;
+    const shownName = translatedStylists.find(s => s.id === record.id)?.name || name;
+    const note = describeSchedule(record, lang);
+    return note ? `${shownName} (${note})` : shownName;
+  };
+
+  // Load everyone's booked times so taken slots show as unavailable
+  useEffect(() => { refreshBookedTimes(); }, [refreshBookedTimes]);
 
   useEffect(() => {
     if (currentUser) {
@@ -1517,12 +1645,13 @@ function BookingView() {
       return;
     }
 
-    const fullPhone = `${countryCode}${phoneInput}`.replace(/\s+/g, '');
+    // The server only accepts digits after the country code (E.164)
+    const fullPhone = `${countryCode}${phoneInput.replace(/\D/g, '')}`;
     if (fullPhone !== currentUser.phone || bookingName !== currentUser.name) {
       await updateDoc(doc(db, 'users', currentUser.id), { phone: fullPhone, name: bookingName });
     }
 
-    const appointmentRef = await addAppointmentTyped({
+    const appointmentRef = await addAppointment({
       userId: currentUser.id,
       name: bookingName, phone: fullPhone,
       services: selectedServices.map(s => s.name),
@@ -1537,6 +1666,8 @@ function BookingView() {
       isGroup: guests.length > 0,
       guests: guests.length > 0 ? guests : []
     } as any);
+    // The server refused the booking (e.g. the slot was just taken); the error is already shown
+    if (!appointmentRef) return;
 
     if (refImageFile && appointmentRef?.id) {
       try {
@@ -1621,7 +1752,7 @@ function BookingView() {
                 <div>
                   <label className="block text-xs uppercase text-gray-400 mb-2">{t.booking.stylist}</label>
                   <select value={stylist} onChange={e=>{setStylist(e.target.value); setSelectedSlot("");}} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white">
-                    {availableStylists.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
+                    {availableStylists.map((opt: string, i: number) => <option key={i} value={opt}>{stylistLabel(opt)}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1683,7 +1814,7 @@ function BookingView() {
                           <div>
                             <label className="block text-[10px] uppercase text-gray-500 mb-1">{t.booking.stylist}</label>
                             <select value={g.stylist} onChange={e => updateGuest(g.id, 'stylist', e.target.value)} className="w-full bg-black border border-white/20 p-3 rounded-sm text-white text-xs">
-                               {availableStylists.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
+                               {availableStylists.map((opt: string, i: number) => <option key={i} value={opt}>{stylistLabel(opt)}</option>)}
                             </select>
                           </div>
                        </div>

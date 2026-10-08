@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 import { createAuditLog, logAudit } from '@/lib/validation';
+import { isSlotOpen, timeToMins, BookedAppointment, ScheduledStylist } from '@/lib/schedule';
 
 const appointmentSchema = z.object({
   name: z.string().min(2).max(100),
@@ -106,7 +107,38 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    const docRef = await adminDb.collection('appointments').add(appointmentData);
+    const docRef = adminDb.collection('appointments').doc();
+    // Group bookings carry only a preferred time and are arranged by the salon by hand
+    if (isCallerAdmin || validation.data.isGroup) {
+      await docRef.set(appointmentData);
+    } else {
+      const [stylistsSnap, settingsSnap] = await Promise.all([
+        adminDb.collection('stylists').get(),
+        adminDb.doc('settings/general').get(),
+      ]);
+      const stylists = stylistsSnap.docs.map(d => d.data() as ScheduledStylist);
+      const holidays: string[] = settingsSnap.data()?.holidays || [];
+
+      // Re-check inside a transaction so two customers can't grab the same slot at once
+      const slotTaken = await adminDb.runTransaction(async tx => {
+        const sameDay = await tx.get(adminDb.collection('appointments').where('date', '==', date));
+        const open = isSlotOpen({
+          date,
+          startMins: timeToMins(time),
+          duration: validation.data.totalDurationMins,
+          stylist: validation.data.stylist,
+          stylists,
+          appointments: sameDay.docs.map(d => d.data() as BookedAppointment),
+          holidays,
+        });
+        if (!open) return true;
+        tx.create(docRef, appointmentData);
+        return false;
+      });
+      if (slotTaken) {
+        return NextResponse.json({ error: 'This time is not available for the chosen stylist' }, { status: 409 });
+      }
+    }
 
     const auditLog = createAuditLog(req, userId, userRole, 'appointment_create', docRef.id, 'appointment', true, undefined, {
       durationMs: Date.now() - startTime,

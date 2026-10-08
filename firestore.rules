@@ -32,7 +32,9 @@ service cloud.firestore {
 
     match /appointments/{apptId} {
       allow read: if isOwnerOrAdmin(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+      // Customer bookings go through /api/appointments, which checks the stylist's
+      // working hours and existing bookings before writing with the Admin SDK.
+      allow create: if isAdmin();
       // Owners may only: attach a reference image, or respond to a proposed
       // reschedule (accept -> confirmed, or reject -> cancelled). Anything else
       // (self-confirming a pending booking, editing notes/date/time/stylist
@@ -57,6 +59,10 @@ service cloud.firestore {
       allow delete: if isAdmin() || isOwner(resource.data.userId);
     }
 
+    match /stylists/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     match /services/{document=**} {
       allow read: if true;
       allow write: if isAdmin();

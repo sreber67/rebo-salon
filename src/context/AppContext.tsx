@@ -1,8 +1,9 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { auth, db, getGoogleProvider, getFacebookProvider } from '../lib/firebase';
 import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, verifyBeforeUpdateEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
-import { doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, DocumentReference, query, where } from 'firebase/firestore';
+import { doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, query, where } from 'firebase/firestore';
+import { CLOSED_WEEKDAYS, isSlotOpen, getWorkHours, rosterOf, timeToMins, ANY_STYLIST_NAMES, WeeklySchedule, BookedAppointment } from '../lib/schedule';
 
 type Language = string;
 type Page = 'home' | 'services' | 'gallery' | 'products' | 'contact' | 'booking' | 'admin' | 'auth' | 'profile';
@@ -27,7 +28,7 @@ export type Appointment = {
 export type WaitlistItem = { id: string; userId: string; name: string; phone: string; date: string; stylist: string; createdAt: number; };
 
 // Phase 4 Dynamic Management Types
-export type StylistItem = { id: string; name: string; services: string[] };
+export type StylistItem = { id: string; name: string; services: string[]; weeklySchedule?: WeeklySchedule | null; daysOff?: string[] };
 export type GeneralSettings = { 
   holidays: string[]; 
   heroImage?: string;
@@ -54,9 +55,7 @@ export const initialSlots: TimeSlot[] = Array.from({ length: 20 }, (_, i) => {
   return { id: `t${i + 1}`, time, isBooked: false };
 });
 
-// Every booking must finish by closing time; the salon is closed on these weekdays (0 = Sunday)
-export const CLOSING_TIME_MINS = 19 * 60;
-const CLOSED_WEEKDAYS = [0];
+export { CLOSING_TIME_MINS } from '../lib/schedule';
 // How far ahead to look when suggesting the next free slot
 const NEXT_SLOT_SEARCH_DAYS = 60;
 
@@ -83,18 +82,20 @@ export interface AppContextType {
   updateUserPassword: (oldPass: string, newPass: string) => Promise<void>;
   logout: () => void;
   appointments: Appointment[]; 
-  addAppointment: (appt: Omit<Appointment, 'id'>) => Promise<DocumentReference | undefined>;
+  addAppointment: (appt: Omit<Appointment, 'id'>) => Promise<{ id: string } | undefined>;
   addAdminAppointment: (appt: Omit<Appointment, 'id'>) => Promise<void>;
   updateAppointmentStatus: (id: string, status: Appointment['status'], sendsms: boolean, notes?: string, proposedDate?: string, proposedTime?: string) => Promise<void>;
   servicesDB: ServiceItem[]; addService: (s: Omit<ServiceItem, 'id'>) => Promise<void>; deleteService: (id: string) => Promise<void>;
   productsDB: ProductItem[]; addProduct: (p: Omit<ProductItem, 'id'>) => Promise<void>; deleteProduct: (id: string) => Promise<void>;
   updateProductStock: (id: string, newStock: number) => Promise<void>;
   stylistsDB: StylistItem[]; addStylist: (s: Omit<StylistItem, 'id'>) => Promise<void>; deleteStylist: (id: string) => Promise<void>;
+  updateStylist: (id: string, data: Partial<Omit<StylistItem, 'id'>>) => Promise<void>;
   generalSettings: GeneralSettings; updateGeneralSettings: (settings: Partial<GeneralSettings>) => Promise<void>;
   waitlist: WaitlistItem[]; addToWaitlist: (item: Omit<WaitlistItem, 'id' | 'createdAt'>) => Promise<void>; removeFromWaitlist: (id: string) => Promise<void>; notifyWaitlist: (item: WaitlistItem) => Promise<void>; resendConfirmation: (id: string) => Promise<void>;
   notifications: Notification[]; addNotification: (msg: string, type?: 'success' | 'info' | 'error') => void;
   alerts: Alert[]; markAlertRead: (id: string) => Promise<void>; clearAlerts: () => Promise<void>;
   focusedAppointmentId: string | null; setFocusedAppointmentId: (id: string | null) => void;
+  refreshBookedTimes: () => Promise<void>;
   getAvailableSlots: (date: string, stylist: string, requiredDuration?: number) => TimeSlot[];
   findNextAvailableSlot: (fromDate: string, stylist: string, requiredDuration: number) => { date: string; slot: TimeSlot } | null;
   getTranslatedServices: () => ServiceItem[];
@@ -147,7 +148,7 @@ export const fallbackTranslations: TranslationData = {
     profile: { title: "Mein Profil", pointsTitle: "Ihre Treuepunkte", pointsDesc: "Sammeln Sie 10 Punkte für 50% Rabatt auf Ihren nächsten Schnitt!", historyTitle: "Ihr Besuchsverlauf", upcomingTitle: "Anstehende Termine", notesLabel: "Stylisten-Notizen:", noHistory: "Bisher keine Termine.", saveNote: "Notiz speichern", welcome: "Willkommen zurück", overview: "Übersicht", settings: "Einstellungen", editProfile: "Profil bearbeiten", contactData: "Kontaktdaten", noPhone: "Keine Telefonnummer gespeichert. Bitte in den Einstellungen hinzufügen.", acceptTime: "Zeit Akzeptieren", cancel: "Stornieren", pending: "Ausstehend", completed: "Abgeschlossen", newProposal: "Neuer Terminvorschlag vom Salon:" }, 
     notifications: { title: "Benachrichtigungen", empty: "Keine Benachrichtigungen.", clearAll: "Alle löschen" },
     security: { title: "Sicherheitsupdate", desc: "Wir haben unsere Sicherheitsstandards aktualisiert. Bitte ändern Sie Ihr Passwort, um fortzufahren.", currentPass: "Aktuelles Passwort", newPass: "Neues Passwort", confirmPass: "Neues Passwort bestätigen", sendCode: "Code via E-Mail senden", enterCode: "E-Mail Bestätigungscode", cancel: "Abbrechen", confirmBtn: "Bestätigen & Ändern", secTitle: "Passwort & Sicherheit", oauthMsg: "Sie sind über einen Drittanbieter (Google/Facebook) angemeldet. Passwortänderungen sind hier nicht verfügbar.", sendOtpBtn: "OTP per E-Mail senden" },
-    admin: { title: "Admin Control Panel", analytics: { revenue: "Umsatz Heute", completed: "Bestätigt (Heute)", upcoming: "Ausstehend (Heute)" }, tabs: { requests: "Anfragen", calendar: "Kalender", services: "Leistungen", products: "Produkte", clients: "Kunden", waitlist: "Warteliste", team: "Team", settings: "Einstellungen" }, team: { title: "Team & Stylisten", name: "Name des Stylisten", services: "Spezialisierungen (Leistungen)", saveBtn: "Stylist speichern", deleteBtn: "Löschen" }, settings: { title: "Allgemeine Einstellungen", holidays: "Geschlossene Tage (Urlaub / Feiertage)", holidayDate: "Datum auswählen", addHoliday: "Tag blockieren", designTitle: "Homepage Design & Texte", heroImg: "Hero Hintergrundbild (URL)", aboutImg: "Profilbild (URL)", aboutTitleDe: "Titel (Deutsch)", aboutTextDe: "Beschreibung (Deutsch - max. 400 Zeichen)", aboutTitleEn: "Titel (Englisch)", aboutTextEn: "Beschreibung (Englisch - max. 400 Zeichen)", saveDesign: "Design speichern" }, calendar: { back: "Zurück", next: "Weiter", freeSlot: "Freier Slot", allStylists: "Alle Stylisten", blockBtn: "Blockieren", unblockBtn: "Freigeben" }, walkIn: { title: "Walk-In / Termin Hinzufügen", name: "Kundenname", service: "Leistung / Info", duration: "Dauer (Min)", saveBtn: "Speichern", cancel: "Abbrechen", btn: "+ Walk-In" }, clients: { search: "Kunde nach Name oder Telefon suchen...", notes: "Stylisten-Notizen (z.B. Haarfarbe, Formel...)", saveNotes: "Notizen speichern" }, waitlist: { title: "Warteliste", empty: "Warteliste ist leer.", notifyBtn: "Kunde Benachrichtigen", removeBtn: "Entfernen" }, requests: { pending: "Ausstehende Anfragen", noPending: "Keine neuen Anfragen.", services: "Leistungen:", refImage: "Referenzbild:", confirmBtn: "Bestätigen", rejectBtn: "Ablehnen", reschedule: "Termin verschieben (Neuer Vorschlag)", proposeBtn: "Vorschlagen", confirmed: "Bestätigt & Historie", notesPlaceholder: "Internal Notes (e.g. Skin fade #1...)", saveNote: "Notiz speichern", cancelBtn: "Stornieren", move: "Verschieben:", proposeClientBtn: "Kunden Vorschlagen", status: "Status", resendBtn: "Bestätigung neu senden", groupBadge: "👥 Gruppenbuchung" }, services: { addTitle: "Leistung hinzufügen", nameDe: "Name der Leistung (Deutsch)", nameEn: "Name (Englische Vorschau)", price: "Preis (€)", duration: "Dauer (Min)", saveBtn: "In Datenbank speichern", deleteBtn: "Löschen", translateBtn: "✨ KI: Auf Englisch übersetzen", translating: "Übersetzen..." }, products: { addTitle: "Produkt hinzufügen", nameDe: "Produktname (Deutsch)", descDe: "Beschreibung (Deutsch)", nameEn: "Name (Englische Vorschau)", descEn: "Beschreibung (Englische Vorschau)", price: "Preis (€)", initialStock: "Anfangsbestand", uploadImg: "Produktbild hochladen", saveBtn: "Produkt speichern", stockLabel: "Bestand" } },
+    admin: { title: "Admin Control Panel", analytics: { revenue: "Umsatz Heute", completed: "Bestätigt (Heute)", upcoming: "Ausstehend (Heute)" }, tabs: { requests: "Anfragen", calendar: "Kalender", services: "Leistungen", products: "Produkte", clients: "Kunden", waitlist: "Warteliste", team: "Team", settings: "Einstellungen" }, team: { title: "Team & Stylisten", name: "Name des Stylisten", services: "Spezialisierungen (Leistungen)", saveBtn: "Stylist speichern", deleteBtn: "Löschen", editSchedule: "Arbeitszeiten", workingHours: "Arbeitszeiten", salonHours: "Normale Öffnungszeiten", scheduleHint: "Kunden können diesen Stylisten nur zu diesen Zeiten buchen.", salonHoursHint: "Noch keine eigenen Zeiten – bucht sich zu den normalen Öffnungszeiten.", salonClosed: "Salon geschlossen", dayOff: "Frei", saveSchedule: "Arbeitszeiten speichern", resetSchedule: "Auf Öffnungszeiten zurücksetzen", invalidHours: "Bitte gültige Zeiten zwischen 09:00 und 19:00 eingeben (Beginn vor Ende).", daysOff: "Urlaub / freie Tage", daysOffHint: "An diesen Tagen ist nur dieser Stylist nicht buchbar.", addDayOff: "Hinzufügen", noDaysOff: "Keine freien Tage eingetragen." }, settings: { title: "Allgemeine Einstellungen", holidays: "Geschlossene Tage (Urlaub / Feiertage)", holidayDate: "Datum auswählen", addHoliday: "Tag blockieren", designTitle: "Homepage Design & Texte", heroImg: "Hero Hintergrundbild (URL)", aboutImg: "Profilbild (URL)", aboutTitleDe: "Titel (Deutsch)", aboutTextDe: "Beschreibung (Deutsch - max. 400 Zeichen)", aboutTitleEn: "Titel (Englisch)", aboutTextEn: "Beschreibung (Englisch - max. 400 Zeichen)", saveDesign: "Design speichern" }, calendar: { back: "Zurück", next: "Weiter", freeSlot: "Freier Slot", allStylists: "Alle Stylisten", blockBtn: "Blockieren", unblockBtn: "Freigeben" }, walkIn: { title: "Walk-In / Termin Hinzufügen", name: "Kundenname", service: "Leistung / Info", duration: "Dauer (Min)", saveBtn: "Speichern", cancel: "Abbrechen", btn: "+ Walk-In" }, clients: { search: "Kunde nach Name oder Telefon suchen...", notes: "Stylisten-Notizen (z.B. Haarfarbe, Formel...)", saveNotes: "Notizen speichern" }, waitlist: { title: "Warteliste", empty: "Warteliste ist leer.", notifyBtn: "Kunde Benachrichtigen", removeBtn: "Entfernen" }, requests: { pending: "Ausstehende Anfragen", noPending: "Keine neuen Anfragen.", services: "Leistungen:", refImage: "Referenzbild:", confirmBtn: "Bestätigen", rejectBtn: "Ablehnen", reschedule: "Termin verschieben (Neuer Vorschlag)", proposeBtn: "Vorschlagen", confirmed: "Bestätigt & Historie", notesPlaceholder: "Internal Notes (e.g. Skin fade #1...)", saveNote: "Notiz speichern", cancelBtn: "Stornieren", move: "Verschieben:", proposeClientBtn: "Kunden Vorschlagen", status: "Status", resendBtn: "Bestätigung neu senden", groupBadge: "👥 Gruppenbuchung" }, services: { addTitle: "Leistung hinzufügen", nameDe: "Name der Leistung (Deutsch)", nameEn: "Name (Englische Vorschau)", price: "Preis (€)", duration: "Dauer (Min)", saveBtn: "In Datenbank speichern", deleteBtn: "Löschen", translateBtn: "✨ KI: Auf Englisch übersetzen", translating: "Übersetzen..." }, products: { addTitle: "Produkt hinzufügen", nameDe: "Produktname (Deutsch)", descDe: "Beschreibung (Deutsch)", nameEn: "Name (Englische Vorschau)", descEn: "Beschreibung (Englische Vorschau)", price: "Preis (€)", initialStock: "Anfangsbestand", uploadImg: "Produktbild hochladen", saveBtn: "Produkt speichern", stockLabel: "Bestand" } },
     alertsMsg: { confirmed1: "Your appointment on", confirmed2: "has been confirmed!", cancelled1: "Your appointment on", cancelled2: "has been cancelled.", proposed1: "New appointment proposal:", proposed2: "Please confirm!" }
   },
   en: { 
@@ -179,7 +180,7 @@ export const fallbackTranslations: TranslationData = {
     profile: { title: "My Profile", pointsTitle: "Your Loyalty Points", pointsDesc: "Collect 10 points for 50% off your next cut!", historyTitle: "Your Visit History", upcomingTitle: "Upcoming Appointments", notesLabel: "Stylist Notes:", noHistory: "No appointments yet.", saveNote: "Save Note", welcome: "Welcome back", overview: "Overview", settings: "Settings", editProfile: "Edit Profile", contactData: "Contact Data", noPhone: "No phone number saved. Please add in settings.", acceptTime: "Accept Time", cancel: "Cancel", pending: "Pending", completed: "Completed", newProposal: "New appointment proposal from salon:" }, 
     notifications: { title: "Notifications", empty: "No notifications.", clearAll: "Clear All" },
     security: { title: "Security Update", desc: "We updated our security standards. Please change your password to continue.", currentPass: "Current Password", newPass: "New Password", confirmPass: "Confirm New Password", sendCode: "Send code via E-Mail", enterCode: "E-Mail verification code", cancel: "Cancel", confirmBtn: "Confirm & Change", secTitle: "Password & Security", oauthMsg: "You are logged in via a third party (Google/Facebook). Password changes are not available here.", sendOtpBtn: "Send OTP via E-Mail" },
-    admin: { title: "Admin Control Panel", analytics: { revenue: "Today's Revenue", completed: "Confirmed (Today)", upcoming: "Pending (Today)" }, tabs: { requests: "Requests", calendar: "Calendar", services: "Services", products: "Products", clients: "Clients", waitlist: "Waitlist", team: "Team", settings: "Settings" }, team: { title: "Team & Stylists", name: "Stylist Name", services: "Specialties (Services)", saveBtn: "Save Stylist", deleteBtn: "Delete" }, settings: { title: "General Settings", walkin: "Live Walk-in Wait Time", walkinPlaceholder: "e.g. 15 Minutes, Fully Booked...", saveWalkin: "Update Wait Time", holidays: "Closed Dates (Holidays)", holidayDate: "Select Date", addHoliday: "Block Date", designTitle: "Homepage Design & Text", heroImg: "Hero Background Image (URL)", aboutImg: "Profile Picture (URL)", aboutTitleDe: "Title (German)", aboutTextDe: "Description (German - max. 400 chars)", aboutTitleEn: "Title (English)", aboutTextEn: "Description (English - max. 400 chars)", saveDesign: "Save Design" }, calendar: { back: "Back", next: "Next", freeSlot: "Free Slot", allStylists: "All Stylists", blockBtn: "Block", unblockBtn: "Unblock" }, walkIn: { title: "Add Walk-In / Appointment", name: "Client Name", service: "Service / Info", duration: "Duration (Min)", saveBtn: "Save", cancel: "Cancel", btn: "+ Walk-In" }, clients: { search: "Search client by name or phone...", notes: "Stylist Notes (e.g. formula, allergies...)", saveNotes: "Save Notes" }, waitlist: { title: "Waitlist", empty: "Waitlist is empty.", notifyBtn: "Notify Client", removeBtn: "Remove" }, requests: { pending: "Pending Requests", noPending: "No new requests.", services: "Services:", refImage: "Reference Image:", confirmBtn: "Confirm", rejectBtn: "Reject", reschedule: "Reschedule (New Proposal)", proposeBtn: "Propose", confirmed: "Confirmed & History", notesPlaceholder: "Internal Notes (e.g. Skin fade #1...)", saveNote: "Save Note", cancelBtn: "Cancel", move: "Move:", proposeClientBtn: "Propose to Client", status: "Status", resendBtn: "Resend Confirm", groupBadge: "👥 Group Booking" }, services: { addTitle: "Add Service", nameDe: "Service Name (German)", nameEn: "Name (English Preview)", price: "Price (€)", duration: "Duration (Min)", saveBtn: "Save to Database", deleteBtn: "Delete", translateBtn: "✨ AI: Translate to English", translating: "Translating..." }, products: { addTitle: "Add Product", nameDe: "Product Name (German)", descDe: "Description (German)", nameEn: "Name (English Preview)", descEn: "Description (English Preview)", price: "Price (€)", initialStock: "Initial Stock", uploadImg: "Upload Product Image", saveBtn: "Save Product", stockLabel: "Stock" } },
+    admin: { title: "Admin Control Panel", analytics: { revenue: "Today's Revenue", completed: "Confirmed (Today)", upcoming: "Pending (Today)" }, tabs: { requests: "Requests", calendar: "Calendar", services: "Services", products: "Products", clients: "Clients", waitlist: "Waitlist", team: "Team", settings: "Settings" }, team: { title: "Team & Stylists", name: "Stylist Name", services: "Specialties (Services)", saveBtn: "Save Stylist", deleteBtn: "Delete", editSchedule: "Working hours", workingHours: "Working hours", salonHours: "Regular opening hours", scheduleHint: "Clients can only book this stylist during these times.", salonHoursHint: "No custom hours yet – bookable during regular opening hours.", salonClosed: "Salon closed", dayOff: "Off", saveSchedule: "Save working hours", resetSchedule: "Reset to opening hours", invalidHours: "Please enter valid times between 09:00 and 19:00 (start before end).", daysOff: "Holidays / days off", daysOffHint: "Only this stylist is unavailable on these dates.", addDayOff: "Add", noDaysOff: "No days off entered." }, settings: { title: "General Settings", walkin: "Live Walk-in Wait Time", walkinPlaceholder: "e.g. 15 Minutes, Fully Booked...", saveWalkin: "Update Wait Time", holidays: "Closed Dates (Holidays)", holidayDate: "Select Date", addHoliday: "Block Date", designTitle: "Homepage Design & Text", heroImg: "Hero Background Image (URL)", aboutImg: "Profile Picture (URL)", aboutTitleDe: "Title (German)", aboutTextDe: "Description (German - max. 400 chars)", aboutTitleEn: "Title (English)", aboutTextEn: "Description (English - max. 400 chars)", saveDesign: "Save Design" }, calendar: { back: "Back", next: "Next", freeSlot: "Free Slot", allStylists: "All Stylists", blockBtn: "Block", unblockBtn: "Unblock" }, walkIn: { title: "Add Walk-In / Appointment", name: "Client Name", service: "Service / Info", duration: "Duration (Min)", saveBtn: "Save", cancel: "Cancel", btn: "+ Walk-In" }, clients: { search: "Search client by name or phone...", notes: "Stylist Notes (e.g. formula, allergies...)", saveNotes: "Save Notes" }, waitlist: { title: "Waitlist", empty: "Waitlist is empty.", notifyBtn: "Notify Client", removeBtn: "Remove" }, requests: { pending: "Pending Requests", noPending: "No new requests.", services: "Services:", refImage: "Reference Image:", confirmBtn: "Confirm", rejectBtn: "Reject", reschedule: "Reschedule (New Proposal)", proposeBtn: "Propose", confirmed: "Confirmed & History", notesPlaceholder: "Internal Notes (e.g. Skin fade #1...)", saveNote: "Save Note", cancelBtn: "Cancel", move: "Move:", proposeClientBtn: "Propose to Client", status: "Status", resendBtn: "Resend Confirm", groupBadge: "👥 Group Booking" }, services: { addTitle: "Add Service", nameDe: "Service Name (German)", nameEn: "Name (English Preview)", price: "Price (€)", duration: "Duration (Min)", saveBtn: "Save to Database", deleteBtn: "Delete", translateBtn: "✨ AI: Translate to English", translating: "Translating..." }, products: { addTitle: "Add Product", nameDe: "Product Name (German)", descDe: "Description (German)", nameEn: "Name (English Preview)", descEn: "Description (English Preview)", price: "Price (€)", initialStock: "Initial Stock", uploadImg: "Upload Product Image", saveBtn: "Save Product", stockLabel: "Stock" } },
     alertsMsg: { confirmed1: "Your appointment on", confirmed2: "has been confirmed!", cancelled1: "Your appointment on", cancelled2: "has been cancelled.", proposed1: "New appointment proposal:", proposed2: "Please confirm!" }
   }
 };
@@ -206,6 +207,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Appointment the admin panel should scroll to and highlight (set from a notification click)
   const [focusedAppointmentId, setFocusedAppointmentId] = useState<string | null>(null);
   const [waitlist, setWaitlist] = useState<WaitlistItem[]>([]);
+  // Everyone's booked time blocks (no personal data); customers can only read their own appointments
+  const [bookedTimes, setBookedTimes] = useState<BookedAppointment[]>([]);
   
   // Phase 4 Dynamic State
   const [stylistsDB, setStylistsDB] = useState<StylistItem[]>([]);
@@ -479,68 +482,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const timeToMins = (t: string) => { 
-    const [h, m] = t.split(':').map(Number); 
-    return h * 60 + m; 
-  };
+  const refreshBookedTimes = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/availability?from=${toLocalDateStr(new Date())}`);
+      if (res.ok) setBookedTimes((await res.json()).appointments || []);
+    } catch (err) { console.error('Could not load booked times', err); }
+  }, []);
 
   const getAvailableSlots = (date: string, stylist: string, requiredDuration: number = 60) => {
     if (!date) return initialSlots.map(s => ({ ...s, isBooked: false }));
+    const allBooked = initialSlots.map(s => ({ ...s, isBooked: true }));
     
     // Phase 4: Block Global Holidays Automatically
-    if (generalSettings.holidays && generalSettings.holidays.includes(date)) {
-        return initialSlots.map(s => ({ ...s, isBooked: true }));
-    }
+    if (generalSettings.holidays && generalSettings.holidays.includes(date)) return allBooked;
     // No back-dated bookings; YYYY-MM-DD strings compare correctly as text
-    if (date < toLocalDateStr(new Date()) || CLOSED_WEEKDAYS.includes(new Date(`${date}T00:00:00`).getDay())) {
-        return initialSlots.map(s => ({ ...s, isBooked: true }));
-    }
+    if (date < toLocalDateStr(new Date()) || CLOSED_WEEKDAYS.includes(new Date(`${date}T00:00:00`).getDay())) return allBooked;
 
-    // Hide start times whose services would run past closing, and times already passed today
+    // Only offer times inside the working hours of the chosen stylist (or of anyone, for "Any")
+    const roster = rosterOf(stylistsDB);
+    const chosen = roster.find(s => s.name === stylist);
+    const windows = (chosen ? [chosen] : roster).map(s => getWorkHours(s, date)).filter(h => h !== null);
+    if (windows.length === 0) return allBooked;
+
+    // Hide start times whose services would run past the end of the shift, and times already passed today
     const now = new Date();
     const nowMins = date === toLocalDateStr(now) ? now.getHours() * 60 + now.getMinutes() : -1;
-    const fittingSlots = initialSlots.filter(slot => {
-      const slotMins = timeToMins(slot.time);
-      return slotMins + requiredDuration <= CLOSING_TIME_MINS && slotMins > nowMins;
-    });
+    const anyNames = [...ANY_STYLIST_NAMES, translations[lang]?.booking?.stylistAny].filter(Boolean);
+    const knownBookings: BookedAppointment[] = isAdminAuth ? appointments : [...bookedTimes, ...appointments];
 
-    const realStylists = stylistsDB.length > 0 ? stylistsDB.map(s => s.name) : ["Rebo (Inhaber)", "Anna", "Marcus"];
-
-    return fittingSlots.map(slot => {
-      const slotMins = timeToMins(slot.time);
-      
-      let isBooked = false;
-      if (stylist && stylist !== 'Egal (Wer frei ist)' && stylist !== 'Any' && stylist !== translations[lang]?.booking?.stylistAny) {
-        isBooked = appointments.some(a => {
-          if (a.date !== date || (a.status !== 'confirmed' && a.status !== 'pending' && a.status !== 'proposed' && a.status !== 'blocked')) return false;
-          if (a.stylist !== stylist && a.stylist !== 'Egal (Wer frei ist)' && a.stylist !== 'Any' && a.stylist !== translations[lang]?.booking?.stylistAny) return false;
-          
-          const aStart = (a.status === 'proposed' && a.proposedTime) ? timeToMins(a.proposedTime) : timeToMins(a.time);
-          const aEnd = aStart + (a.totalDurationMins || 60);
-          
-          const newStart = slotMins;
-          const newEnd = slotMins + requiredDuration;
-          
-          return newStart < aEnd && newEnd > aStart;
-        });
-      } else {
-        let overlaps = 0;
-        realStylists.forEach(sName => {
-          const sBooked = appointments.some(a => {
-            if (a.date !== date || (a.status !== 'confirmed' && a.status !== 'pending' && a.status !== 'proposed' && a.status !== 'blocked')) return false;
-            if (a.stylist !== sName && a.stylist !== 'Egal (Wer frei ist)' && a.stylist !== 'Any' && a.stylist !== translations[lang]?.booking?.stylistAny) return false;
-            
-            const aStart = (a.status === 'proposed' && a.proposedTime) ? timeToMins(a.proposedTime) : timeToMins(a.time);
-            const aEnd = aStart + (a.totalDurationMins || 60);
-            return slotMins < aEnd && (slotMins + requiredDuration) > aStart;
-          });
-          if (sBooked) overlaps++;
-        });
-        isBooked = overlaps >= realStylists.length;
-      }
-
-      return { ...slot, isBooked };
-    });
+    return initialSlots
+      .filter(slot => {
+        const slotMins = timeToMins(slot.time);
+        return slotMins > nowMins && windows.some(w => slotMins >= w.start && slotMins + requiredDuration <= w.end);
+      })
+      .map(slot => ({
+        ...slot,
+        isBooked: !isSlotOpen({ date, startMins: timeToMins(slot.time), duration: requiredDuration, stylist, stylists: stylistsDB, appointments: knownBookings, anyNames }),
+      }));
   };
 
   // First free slot on a later day that fits the whole booking before closing time
@@ -716,10 +694,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addNotification("Gespeichert!", 'success');
   };
 
-  const addAppointment = async (appt: Omit<Appointment, 'id'>): Promise<DocumentReference | undefined> => {
+  const addAppointment = async (appt: Omit<Appointment, 'id'>): Promise<{ id: string } | undefined> => {
     if (!currentUser) return;
     
-    const docRef = await addDoc(collection(db, 'appointments'), appt);
+    // Bookings go through the server, which re-checks the stylist's hours and existing bookings
+    const res = await fetch('/api/appointments', { method: 'POST', headers: await getAuthHeaders(), body: JSON.stringify(appt) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const message = res.status === 409
+        ? "Dieser Termin ist leider nicht mehr verfügbar. Bitte wähle eine andere Uhrzeit."
+        : res.status === 400
+          ? "Bitte überprüfe deine Angaben (Name, Telefonnummer, Datum)."
+          : "Buchung fehlgeschlagen. Bitte versuche es erneut oder ruf uns an.";
+      addNotification(message, 'error');
+      if (res.status === 409) refreshBookedTimes();
+      return;
+    }
+    const docRef = { id: data.id as string };
+    refreshBookedTimes();
 
     // Notify the salon in the admin notification bell; a failure here must not block the booking
     try {
@@ -842,6 +834,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addStylist = async (s: Omit<StylistItem, 'id'>) => { await addDoc(collection(db, 'stylists'), s); addNotification("Stylist gespeichert!", 'success'); };
   const deleteStylist = async (id: string) => { await deleteDoc(doc(db, 'stylists', id)); addNotification("Stylist entfernt.", 'info'); };
+  const updateStylist = async (id: string, data: Partial<Omit<StylistItem, 'id'>>) => {
+    if (!isAdminAuth) return;
+    await updateDoc(doc(db, 'stylists', id), data);
+    addNotification("Stylist aktualisiert!", 'success');
+  };
   const updateGeneralSettings = async (settings: Partial<GeneralSettings>) => {
     if (!isAdminAuth) return;
     await setDoc(doc(db, 'settings', 'general'), settings, { merge: true });
@@ -902,9 +899,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lang, setLang, changeLanguage, isTranslatingUI, page, setPage: setPageRouter, t, updateTranslation,
       isAdminAuth, currentUser, usersDB, updateUserNotes, loginOAuth, loginEmail, registerEmail, resetPassword, updateUserPassword, logout,
       servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock,
-      appointments, addAppointment, addAdminAppointment, updateAppointmentStatus, notifications, addNotification, getAvailableSlots, findNextAvailableSlot,
+      appointments, addAppointment, addAdminAppointment, updateAppointmentStatus, notifications, addNotification, getAvailableSlots, findNextAvailableSlot, refreshBookedTimes,
       waitlist, addToWaitlist, removeFromWaitlist, notifyWaitlist, resendConfirmation,
-      stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings,
+      stylistsDB, addStylist, deleteStylist, updateStylist, generalSettings, updateGeneralSettings,
       alerts, markAlertRead, clearAlerts, focusedAppointmentId, setFocusedAppointmentId,
       getTranslatedServices, getTranslatedProducts, getTranslatedStylists, getTranslatedGeneralSettings
     }}>
