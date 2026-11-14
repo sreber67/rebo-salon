@@ -7,7 +7,6 @@ import { z } from 'zod';
 
 // Common validation helpers
 const e164PhoneRegex = /^\+[1-9]\d{1,14}$/;
-const sanitizeString = (maxLength: number) => z.string().min(1).max(maxLength).transform(s => s.trim());
 const emailSchema = z.string().email().max(254).toLowerCase().transform(s => s.trim());
 
 // SMS API validation
@@ -47,17 +46,6 @@ export const translateRequestSchema = z.object({
 });
 
 export type TranslateRequest = z.infer<typeof translateRequestSchema>;
-
-// UI Translation API validation (larger payloads)
-export const translateUiRequestSchema = z.object({
-  targetLang: z.enum(['en', 'es', 'fr', 'it', 'nl', 'tr', 'pl', 'ru', 'ar', 'zh', 'ja']),
-  sourceDict: z.record(z.unknown()).refine(
-    (dict) => JSON.stringify(dict).length < 100000, // Max 100KB
-    'Source dictionary too large (max 100KB)'
-  ),
-});
-
-export type TranslateUiRequest = z.infer<typeof translateUiRequestSchema>;
 
 // Validation helper function
 export function validateRequest<T>(
@@ -171,12 +159,4 @@ export function createAuditLog(
 export function logAudit(entry: AuditLogEntry): void {
   // In production: send to Cloud Logging, Datadog, etc.
   console.log('[AUDIT]', JSON.stringify(entry));
-}
-
-// getInternalHeaders function for API calls
-export function getInternalHeaders(): Record<string, string> {
-  return {
-    'Content-Type': 'application/json',
-    'x-internal-secret': process.env.INTERNAL_API_SECRET || ''
-  };
 }

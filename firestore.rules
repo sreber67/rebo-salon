@@ -1,31 +1,46 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isOwnerOrAdmin(userId) {
       return isOwner(userId) || isAdmin();
     }
 
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function isShortString(value, max) {
+      return value is string && value.size() <= max;
+    }
+
     match /users/{userId} {
       allow read: if isOwnerOrAdmin(userId);
-      // Self-registration must land as a plain user - role can never be
-      // set to 'admin' by the client, only ever granted by an existing admin.
-      allow create: if isOwner(userId) && request.resource.data.role == 'user';
-      // Owners may edit their own profile, but not their own `role` - that
-      // field previously had no such guard, letting any signed-in user
-      // write role:'admin' onto their own doc and self-promote, since every
-      // isAdmin() check (and the whole client-side admin gate) trusts this
-      // field. Only an admin may change someone's role.
+      // Self-registration lands as a plain user with no points and no salon notes -
+      // role, loyalty points and stylist notes are only ever set by the salon or the server.
+      allow create: if isAdmin() || (
+        isOwner(userId)
+        && request.resource.data.role == 'user'
+        && request.resource.data.get('haircutCount', 0) == 0
+        && !request.resource.data.keys().hasAny(['stylistNotes', 'stylistNotesUpdatedAt'])
+      );
+      // Owners may edit their own profile (name, phone, ...), but never their role,
+      // their loyalty points (booking rewards are handled server-side) or the salon's notes.
       allow update: if isAdmin() || (
-        isOwner(userId) && request.resource.data.role == resource.data.role
+        isOwner(userId)
+        && !changedKeys().hasAny(['role', 'haircutCount', 'stylistNotes', 'stylistNotesUpdatedAt', 'id'])
       );
       allow delete: if isOwnerOrAdmin(userId);
     }
@@ -35,27 +50,15 @@ service cloud.firestore {
       // Customer bookings go through /api/appointments, which checks the stylist's
       // working hours and existing bookings before writing with the Admin SDK.
       allow create: if isAdmin();
-      // Owners may only: attach a reference image, or respond to a proposed
-      // reschedule (accept -> confirmed, or reject -> cancelled). Anything else
-      // (self-confirming a pending booking, editing notes/date/time/stylist
-      // outright) requires admin.
+      // Owners may only attach a reference image uploaded to the salon's Cloudinary.
+      // Answering a proposed time goes through /api/appointments/[id].
       allow update: if isAdmin() || (
-        isOwner(resource.data.userId) && (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['referenceImage']) ||
-          (
-            resource.data.status == 'proposed' &&
-            (
-              (request.resource.data.status == 'confirmed' &&
-                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'date', 'time', 'proposedDate', 'proposedTime'])) ||
-              (request.resource.data.status == 'cancelled' &&
-                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
-            )
-          )
-        )
+        isOwner(resource.data.userId)
+        && changedKeys().hasOnly(['referenceImage'])
+        && isShortString(request.resource.data.referenceImage, 500)
+        && request.resource.data.referenceImage.matches('https://res[.]cloudinary[.]com/.*')
       );
-      // Owners need to be able to delete their own appointments as part of
-      // full account erasure (AccountDeletionModal batch-deletes them) -
-      // admin-only delete made that batch fail with permission-denied.
+      // Owners delete their own appointments as part of full account erasure
       allow delete: if isAdmin() || isOwner(resource.data.userId);
     }
 
@@ -79,18 +82,26 @@ service cloud.firestore {
       // userId 'admin' is the shared inbox for the salon (e.g. new booking requests):
       // any signed-in customer may drop an unread alert there, only admins can read it.
       allow read: if isOwner(resource.data.userId) || (resource.data.userId == 'admin' && isAdmin());
-      allow create: if isAdmin() || isOwner(request.resource.data.userId) || (
-        request.auth != null
-        && request.resource.data.userId == 'admin'
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && (request.resource.data.userId == request.auth.uid || request.resource.data.userId == 'admin')
         && request.resource.data.isRead == false
-        && request.resource.data.message is string
-        && request.resource.data.message.size() <= 500
+        && isShortString(request.resource.data.message, 500)
       );
-      allow update, delete: if isAdmin() || isOwner(resource.data.userId);
+      // Owners may only mark their alerts read, or delete them
+      allow update: if isAdmin() || (isOwner(resource.data.userId) && changedKeys().hasOnly(['isRead']));
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
     }
     match /waitlist/{itemId} {
       // Customers put themselves on the list; only the salon sees or clears it
-      allow create: if isOwner(request.resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+        && request.resource.data.keys().hasOnly(['userId', 'name', 'phone', 'date', 'stylist', 'createdAt'])
+        && isShortString(request.resource.data.name, 100)
+        && isShortString(request.resource.data.phone, 20)
+        && isShortString(request.resource.data.stylist, 100)
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && request.resource.data.createdAt is int;
       allow read, update, delete: if isAdmin();
     }
     match /translations/{document=**} {

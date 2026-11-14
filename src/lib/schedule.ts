@@ -18,6 +18,9 @@ export const ANY_STYLIST_NAMES = ['Egal (Wer frei ist)', 'Any'];
 // Weekdays in the order the salon thinks of them (Monday first)
 export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
+// Loyalty points needed for a reward visit (shown to customers as "x / 10")
+export const REWARD_POINTS = 10;
+
 // Appointment statuses that occupy a stylist's time
 export const BLOCKING_STATUSES = ['confirmed', 'pending', 'proposed', 'blocked'];
 
@@ -31,8 +34,21 @@ export const minsToTime = (mins: number) =>
 
 export const weekdayOf = (date: string) => new Date(`${date}T00:00:00`).getDay();
 
+// A real calendar date in YYYY-MM-DD form (rejects things like 2026-02-30 or 2026-13-01)
+export function isRealDate(date: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
+// A clock time in HH:MM form between 00:00 and 23:59
+export const isRealTime = (time: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
+
 // The stylist's bookable window on that date in minutes, or null when they don't work
 export function getWorkHours(stylist: ScheduledStylist | undefined, date: string): { start: number; end: number } | null {
+  if (!isRealDate(date)) return null;
   const weekday = weekdayOf(date);
   if (CLOSED_WEEKDAYS.includes(weekday)) return null;
   if (stylist?.daysOff?.includes(date)) return null;

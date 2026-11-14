@@ -39,7 +39,9 @@ export async function processImageFile(file: File): Promise<Blob> {
       return;
     }
 
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
       let { width, height } = img;
       if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
         if (width > height) {
@@ -65,8 +67,8 @@ export async function processImageFile(file: File): Promise<Blob> {
       );
     };
 
-    img.onerror = () => reject(new Error('Failed to load image'));
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Failed to load image')); };
+    img.src = objectUrl;
   });
 }
 
@@ -143,16 +145,4 @@ export async function uploadSiteAsset(
   } else {
     throw new Error(data.error?.message || 'Cloudinary upload failed');
   }
-}
-
-/**
- * Unsigned client-side uploads cannot be deleted for security reasons.
- * You can manage/delete assets directly inside your Cloudinary Dashboard.
- */
-export async function deleteReferenceImage(downloadURL: string): Promise<void> {
-  console.warn('Delete action disabled: Client-side deletion is not supported for unsigned Cloudinary uploads.');
-}
-
-export async function getSignedUploadUrl(): Promise<any> {
-  throw new Error('Signed URLs not implemented - using unsigned Cloudinary uploads instead.');
 }

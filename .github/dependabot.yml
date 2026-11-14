@@ -36,8 +36,6 @@ updates:
       security:
         patterns:
           - "zod"
-          - "libphonenumber-js"
-          - "exifr"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]

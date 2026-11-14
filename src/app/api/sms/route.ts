@@ -1,51 +1,25 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
+import { adminDb } from '@/lib/firebaseAdmin';
 import { validateRequest, smsRequestSchema, createAuditLog, logAudit } from '@/lib/validation';
+import { getCaller, readJson, errorMessage, HttpError } from '@/lib/apiAuth';
 
 const normalizePhone = (p: string) => p.replace(/\s+/g, '');
 
 export async function POST(req: NextRequest) {
-  // Local test mode (npm run dev:local): never contact real customers or the salon
-  if (process.env.FIRESTORE_EMULATOR_HOST) {
-    console.log('[local test mode] SMS not sent:', await req.text());
-    return NextResponse.json({ success: true, skipped: 'emulator' });
-  }
-
   const startTime = Date.now();
   let userId: string | undefined;
   let userRole: string | undefined;
 
   try {
-    // Verify Firebase ID Token
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      const auditLog = createAuditLog(req, undefined, undefined, 'sms_send', undefined, 'appointment', false, 'Missing or invalid Authorization header');
-      logAudit(auditLog);
-      return NextResponse.json({ error: 'Unauthorized: Missing token' }, { status: 401 });
-    }
-
-    const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-
-    if (!decodedToken) {
-      const auditLog = createAuditLog(req, undefined, undefined, 'sms_send', undefined, 'appointment', false, 'Invalid token');
-      logAudit(auditLog);
-      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 403 });
-    }
-
-    userId = decodedToken.uid;
-    // Role lives on the Firestore user doc, not a custom claim (nothing ever
-    // sets one) - look it up server-side rather than trusting the client.
-    const callerSnap = await adminDb.doc(`users/${userId}`).get();
-    const callerData = callerSnap.exists ? callerSnap.data() : undefined;
-    const isCallerAdmin = callerData?.role === 'admin';
+    const caller = await getCaller(req);
+    userId = caller.uid;
+    const isCallerAdmin = caller.isAdmin;
     userRole = isCallerAdmin ? 'admin' : 'user';
 
     // Validate request body
-    const body = await req.json();
-    const validation = validateRequest(smsRequestSchema, body);
+    const validation = validateRequest(smsRequestSchema, await readJson(req));
 
     if (!validation.success) {
       const auditLog = createAuditLog(req, userId, userRole, 'sms_send', undefined, 'appointment', false, 'Validation failed', { errors: validation.errors.flatten() });
@@ -77,6 +51,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Local test mode (npm run dev:local): checks above still run, but nothing is sent
+    if (process.env.FIRESTORE_EMULATOR_HOST) {
+      console.log('[local test mode] SMS not sent:', { to: phone, message });
+      return NextResponse.json({ success: true, skipped: 'emulator' });
+    }
+
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
@@ -105,20 +85,20 @@ export async function POST(req: NextRequest) {
     logAudit(auditLog);
 
     return NextResponse.json({ success: true, sid: response.sid }, { status: 200 });
-  } catch (error: any) {
-    const auditLog = createAuditLog(req, userId, userRole, 'sms_send', undefined, 'appointment', false, error.message || 'Failed to send SMS', {
+  } catch (error) {
+    const auditLog = createAuditLog(req, userId, userRole, 'sms_send', undefined, 'appointment', false, errorMessage(error), {
       durationMs: Date.now() - startTime,
     });
     logAudit(auditLog);
 
-    // Don't expose internal error details
-    const status = error.code === 21211 ? 400 : // Invalid phone number
-                   error.code === 21614 ? 400 : // Not a valid mobile number
-                   500;
-
-    return NextResponse.json(
-      { error: status === 400 ? error.message : 'Failed to send SMS' },
-      { status }
-    );
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    // Twilio's "invalid number" errors are safe and useful to show; anything else stays generic
+    const code = (error as { code?: number }).code;
+    if (code === 21211 || code === 21614) {
+      return NextResponse.json({ error: 'Invalid or non-mobile phone number' }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Failed to send SMS' }, { status: 500 });
   }
 }

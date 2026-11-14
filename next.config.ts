@@ -5,7 +5,12 @@ const emulatorHosts = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true'
   ? ' http://127.0.0.1:9099 http://127.0.0.1:8080 ws://127.0.0.1:8080'
   : '';
 
+// React's dev tooling needs eval for fast refresh; production builds don't
+const devEval = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : '';
+
 const nextConfig: NextConfig = {
+  // Pin the project root, so a stray lockfile in a parent folder is never picked up
+  turbopack: { root: __dirname },
   // Local test mode keeps its own build folder so it can run next to a normal dev server
   ...(process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true' ? { distDir: '.next-local' } : {}),
   // Security Headers
@@ -20,12 +25,12 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com https://connect.facebook.net https://cloud.ccm19.de https://*.ccm19.de",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.ccm19.de",
-              "font-src 'self' data: https://fonts.gstatic.com",
+              "script-src 'self' 'unsafe-inline'" + devEval + " https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com https://connect.facebook.net https://cloud.ccm19.de https://*.ccm19.de",
+              "style-src 'self' 'unsafe-inline' https://*.ccm19.de",
+              "font-src 'self' data:",
               "img-src 'self' data: https: blob: https://images.unsplash.com https://firebasestorage.googleapis.com https://res.cloudinary.com https://*.ccm19.de",
-              "connect-src 'self' https://api.cloudinary.com https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.mymemory.translated.net https://api-free.deepl.com https://api.deepl.com https://www.google-analytics.com https://region1.google-analytics.com wss://*.firebaseio.com https://cloud.ccm19.de https://*.ccm19.de" + emulatorHosts,
-              // CRITICAL FIX FOR FIREBASE AUTH:
+              "connect-src 'self' https://api.cloudinary.com https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google-analytics.com https://region1.google-analytics.com wss://*.firebaseio.com https://cloud.ccm19.de https://*.ccm19.de" + emulatorHosts,
+              // Firebase Auth sign-in popups and the Maps embed
               "frame-src 'self' https://accounts.google.com https://www.facebook.com https://rebo-salon.firebaseapp.com https://maps.google.com https://www.google.com https://*.ccm19.de",
               "frame-ancestors 'none'",
               "base-uri 'self'",
@@ -80,11 +85,6 @@ const nextConfig: NextConfig = {
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'off',
-          },
-          // Expect-CT (Certificate Transparency)
-          {
-            key: 'Expect-CT',
-            value: 'max-age=86400, enforce',
           },
         ],
       },

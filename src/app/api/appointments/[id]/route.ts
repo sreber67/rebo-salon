@@ -1,140 +1,114 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
+import { z } from 'zod';
+import { adminDb } from '@/lib/firebaseAdmin';
 import { createAuditLog, logAudit } from '@/lib/validation';
+import { getCaller, readJson, errorResponse, errorMessage, HttpError } from '@/lib/apiAuth';
+import { isRealDate, isRealTime, REWARD_POINTS } from '@/lib/schedule';
 
-const updateSchema = z.object({
-  status: z.enum(['pending', 'confirmed', 'cancelled', 'proposed', 'blocked']).optional(),
+const STATUSES = ['pending', 'confirmed', 'cancelled', 'proposed', 'blocked'] as const;
+
+// What the salon may change on any appointment
+const adminUpdateSchema = z.object({
+  status: z.enum(STATUSES).optional(),
   sendsms: z.boolean().optional(),
-  notes: z.string().max(1000).optional(),
-  proposedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  proposedTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  specialRequests: z.string().max(1000).optional(),
+  notes: z.string().trim().max(1000).optional(),
+  proposedDate: z.string().refine(isRealDate, 'Invalid date').optional(),
+  proposedTime: z.string().refine(isRealTime, 'Invalid time').optional(),
+  specialRequests: z.string().trim().max(1000).optional(),
 });
 
-import { z } from 'zod';
+// Customers may only answer a time the salon proposed: accept it or turn it down
+const customerUpdateSchema = z.object({
+  status: z.enum(['confirmed', 'cancelled']),
+});
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type Params = { params: Promise<{ id: string }> };
+
+export async function PATCH(req: NextRequest, { params }: Params) {
   const startTime = Date.now();
   let userId: string | undefined;
   let userRole: string | undefined;
 
   try {
     const { id } = await params;
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized: Missing token' }, { status: 401 });
-    }
+    const caller = await getCaller(req);
+    userId = caller.uid;
+    userRole = caller.isAdmin ? 'admin' : 'user';
+    const body = await readJson(req);
+    const apptRef = adminDb.doc(`appointments/${id}`);
 
-    const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    userId = decodedToken.uid;
+    const updates = await adminDb.runTransaction(async tx => {
+      const apptSnap = await tx.get(apptRef);
+      if (!apptSnap.exists) throw new HttpError(404, 'Appointment not found');
+      const appt = apptSnap.data()!;
+      if (!caller.isAdmin && appt.userId !== caller.uid) throw new HttpError(403, 'Forbidden');
 
-    const callerSnap = await adminDb.doc(`users/${userId}`).get();
-    const callerData = callerSnap.exists ? callerSnap.data() : undefined;
-    const isCallerAdmin = callerData?.role === 'admin';
-    userRole = isCallerAdmin ? 'admin' : 'user';
+      let changes: Record<string, unknown>;
+      if (caller.isAdmin) {
+        const parsed = adminUpdateSchema.safeParse(body);
+        if (!parsed.success) throw new HttpError(400, 'Validation failed');
+        changes = { ...parsed.data };
+      } else {
+        const parsed = customerUpdateSchema.safeParse(body);
+        if (!parsed.success) throw new HttpError(400, 'Validation failed');
+        if (appt.status !== 'proposed') throw new HttpError(409, 'Only a proposed time can be accepted or declined');
+        changes = parsed.data.status === 'confirmed'
+          ? { status: 'confirmed', date: appt.proposedDate || appt.date, time: appt.proposedTime || appt.time, proposedDate: null, proposedTime: null }
+          : { status: 'cancelled' };
+      }
 
-    const apptSnap = await adminDb.doc(`appointments/${id}`).get();
-    if (!apptSnap.exists) {
-      return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
-    }
+      // Cancelling gives back the points this booking earned or spent
+      const userRef = adminDb.doc(`users/${appt.userId}`);
+      const userSnap = changes.status === 'cancelled' && appt.status !== 'cancelled' ? await tx.get(userRef) : null;
+      if (userSnap?.exists) {
+        const points = Number(userSnap.data()?.haircutCount) || 0;
+        tx.update(userRef, { haircutCount: appt.usedReward ? points + REWARD_POINTS : Math.max(0, points - 1) });
+      }
 
-    const apptData = apptSnap.data()!;
-
-    // Non-admins can only update their own appointments
-    if (!isCallerAdmin && apptData.userId !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const validation = updateSchema.safeParse(body);
-
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validation.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const updateData = { ...validation.data, updatedAt: new Date().toISOString() };
-    await adminDb.doc(`appointments/${id}`).update(updateData);
-
-    const auditLog = createAuditLog(req, userId, userRole, 'appointment_update', id, 'appointment', true, undefined, {
-      updates: validation.data,
-      durationMs: Date.now() - startTime,
+      const finalChanges = { ...changes, updatedAt: new Date().toISOString() };
+      tx.update(apptRef, finalChanges);
+      return finalChanges;
     });
-    logAudit(auditLog);
 
+    logAudit(createAuditLog(req, userId, userRole, 'appointment_update', id, 'appointment', true, undefined, {
+      updates: Object.keys(updates),
+      durationMs: Date.now() - startTime,
+    }));
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    const auditLog = createAuditLog(req, userId, userRole, 'appointment_update', undefined, 'appointment', false, error.message || 'Failed to update appointment', {
+  } catch (error) {
+    logAudit(createAuditLog(req, userId, userRole, 'appointment_update', undefined, 'appointment', false, errorMessage(error), {
       durationMs: Date.now() - startTime,
-    });
-    logAudit(auditLog);
-
-    return NextResponse.json(
-      { error: 'Failed to update appointment' },
-      { status: 500 }
-    );
+    }));
+    return errorResponse(error, 'Failed to update appointment');
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const startTime = Date.now();
   let userId: string | undefined;
   let userRole: string | undefined;
 
   try {
     const { id } = await params;
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized: Missing token' }, { status: 401 });
-    }
+    const caller = await getCaller(req);
+    userId = caller.uid;
+    userRole = caller.isAdmin ? 'admin' : 'user';
 
-    const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    userId = decodedToken.uid;
+    const apptRef = adminDb.doc(`appointments/${id}`);
+    const apptSnap = await apptRef.get();
+    if (!apptSnap.exists) throw new HttpError(404, 'Appointment not found');
+    if (!caller.isAdmin && apptSnap.data()!.userId !== caller.uid) throw new HttpError(403, 'Forbidden');
 
-    const callerSnap = await adminDb.doc(`users/${userId}`).get();
-    const callerData = callerSnap.exists ? callerSnap.data() : undefined;
-    const isCallerAdmin = callerData?.role === 'admin';
-    userRole = isCallerAdmin ? 'admin' : 'user';
+    await apptRef.delete();
 
-    const apptSnap = await adminDb.doc(`appointments/${id}`).get();
-    if (!apptSnap.exists) {
-      return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
-    }
-
-    const apptData = apptSnap.data()!;
-
-    // Non-admins can only delete their own appointments
-    if (!isCallerAdmin && apptData.userId !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    await adminDb.doc(`appointments/${id}`).delete();
-
-    const auditLog = createAuditLog(req, userId, userRole, 'appointment_delete', id, 'appointment', true, undefined, {
+    logAudit(createAuditLog(req, userId, userRole, 'appointment_delete', id, 'appointment', true, undefined, {
       durationMs: Date.now() - startTime,
-    });
-    logAudit(auditLog);
-
+    }));
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    const auditLog = createAuditLog(req, userId, userRole, 'appointment_delete', undefined, 'appointment', false, error.message || 'Failed to delete appointment', {
+  } catch (error) {
+    logAudit(createAuditLog(req, userId, userRole, 'appointment_delete', undefined, 'appointment', false, errorMessage(error), {
       durationMs: Date.now() - startTime,
-    });
-    logAudit(auditLog);
-
-    return NextResponse.json(
-      { error: 'Failed to delete appointment' },
-      { status: 500 }
-    );
+    }));
+    return errorResponse(error, 'Failed to delete appointment');
   }
 }

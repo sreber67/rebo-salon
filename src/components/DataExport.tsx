@@ -1,85 +1,63 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { db } from '../lib/firebase';
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 /**
- * Data Export Component (Art. 20 DSGVO - Right to Data Portability)
- * Allows users to download all their personal data in JSON format
+ * Data Export Component (Art. 15 / 20 DSGVO - Right of access & data portability)
+ * Lets users download everything stored about them as JSON. The export is built by
+ * /api/gdpr/export on the server, which can also include records the browser isn't
+ * allowed to read directly (e.g. waitlist entries).
  */
 
 interface ExportData {
-  profile: Record<string, unknown> | null;
+  user: Record<string, unknown> | null;
   appointments: Record<string, unknown>[];
   alerts: Record<string, unknown>[];
+  waitlist: Record<string, unknown>[];
   exportedAt: string;
   version: string;
 }
 
+async function fetchExport(getAuthHeaders: () => Promise<Record<string, string>>): Promise<ExportData> {
+  const res = await fetch('/api/gdpr/export', { headers: await getAuthHeaders() });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.data) throw new Error(body.error || 'Export fehlgeschlagen');
+  return body.data as ExportData;
+}
+
+function downloadJson(data: ExportData, userId: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `rebo-salon-datenexport-${userId}-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+const Spinner = ({ className }: { className: string }) => (
+  <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" aria-hidden="true">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+  </svg>
+);
+
 export function DataExportButton() {
-  const { currentUser, addNotification } = useApp();
+  const { currentUser, addNotification, getAuthHeaders } = useApp();
   const [isExporting, setIsExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState<string>('');
 
   const handleExport = async () => {
     if (!currentUser) return;
-    
     setIsExporting(true);
-    setExportProgress('Profil laden...');
-    
     try {
-      // 1. Get user profile
-      const userRef = doc(db, 'users', currentUser.id);
-      const userSnap = await getDoc(userRef);
-      const profile = userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } : null;
-
-      setExportProgress('Termine laden...');
-      
-      // 2. Get appointments
-      const apptsQuery = query(collection(db, 'appointments'), where('userId', '==', currentUser.id));
-      const apptsSnap = await getDocs(apptsQuery);
-      const appointments = apptsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      setExportProgress('Benachrichtigungen laden...');
-      
-      // 3. Get alerts
-      const alertsQuery = query(collection(db, 'alerts'), where('userId', '==', currentUser.id));
-      const alertsSnap = await getDocs(alertsQuery);
-      const alerts = alertsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      setExportProgress('Export vorbereiten...');
-      
-      // 4. Compile export data
-      const exportData: ExportData = {
-        profile,
-        appointments,
-        alerts,
-        exportedAt: new Date().toISOString(),
-        version: '1.0',
-      };
-
-      // 5. Create download
-      const jsonString = JSON.stringify(exportData, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `rebo-salon-datenexport-${currentUser.id}-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      setExportProgress('');
+      downloadJson(await fetchExport(getAuthHeaders), currentUser.id);
       addNotification('Datenexport erfolgreich heruntergeladen!', 'success');
-      
-    } catch (error: any) {
+    } catch (error) {
       console.error('Export failed:', error);
-      addNotification(`Export fehlgeschlagen: ${error.message}`, 'error');
-      setExportProgress('');
+      addNotification(`Export fehlgeschlagen: ${error instanceof Error ? error.message : error}`, 'error');
     } finally {
       setIsExporting(false);
     }
@@ -93,15 +71,12 @@ export function DataExportButton() {
     >
       {isExporting ? (
         <>
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span>{exportProgress || 'Export wird vorbereitet...'}</span>
+          <Spinner className="h-5 w-5" />
+          <span>Export wird vorbereitet...</span>
         </>
       ) : (
         <>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
           <span>Meine Daten herunterladen (JSON)</span>
@@ -115,156 +90,99 @@ export function DataExportButton() {
  * Full Data Export Modal with preview
  */
 export function DataExportModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { currentUser, addNotification } = useApp();
-  const [isExporting, setIsExporting] = useState(false);
+  const { currentUser, addNotification, getAuthHeaders } = useApp();
   const [exportData, setExportData] = useState<ExportData | null>(null);
-  const [previewJson, setPreviewJson] = useState<string>('');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const isLoading = isOpen && !exportData && !loadError;
 
-  const loadData = useCallback(async () => {
-    if (!currentUser) return;
-    
-    setIsExporting(true);
-    try {
-      const userRef = doc(db, 'users', currentUser.id);
-      const userSnap = await getDoc(userRef);
-      const profile = userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } : null;
+  useEffect(() => {
+    if (!isOpen || !currentUser) return;
+    let cancelled = false;
+    fetchExport(getAuthHeaders)
+      .then(data => { if (!cancelled) setExportData(data); })
+      .catch(error => { if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error)); });
+    return () => { cancelled = true; };
+    // Load once each time the modal opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, currentUser?.id]);
 
-      const apptsQuery = query(collection(db, 'appointments'), where('userId', '==', currentUser.id));
-      const apptsSnap = await getDocs(apptsQuery);
-      const appointments = apptsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      const alertsQuery = query(collection(db, 'alerts'), where('userId', '==', currentUser.id));
-      const alertsSnap = await getDocs(alertsQuery);
-      const alerts = alertsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      const data: ExportData = {
-        profile,
-        appointments,
-        alerts,
-        exportedAt: new Date().toISOString(),
-        version: '1.0',
-      };
-      
-      setExportData(data);
-      setPreviewJson(JSON.stringify(data, null, 2));
-    } catch (error: any) {
-      addNotification(`Fehler beim Laden: ${error.message}`, 'error');
-    } finally {
-      setIsExporting(false);
-    }
-  }, [currentUser, addNotification]);
-
-  React.useEffect(() => {
-    if (isOpen) loadData();
-  }, [isOpen, loadData]);
+  const close = () => {
+    setExportData(null);
+    setLoadError(null);
+    onClose();
+  };
 
   const handleDownload = () => {
-    if (!exportData) return;
-    
-    const jsonString = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `rebo-salon-datenexport-${currentUser?.id}-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
+    if (!exportData || !currentUser) return;
+    downloadJson(exportData, currentUser.id);
     addNotification('Datenexport heruntergeladen!', 'success');
   };
 
   if (!isOpen) return null;
+  const previewJson = exportData ? JSON.stringify(exportData, null, 2) : '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="data-export-title">
       <div className="w-full max-w-3xl max-h-[90vh] bg-black border border-white/10 rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <h3 className="text-lg font-bold text-white">Datenexport (Art. 20 DSGVO)</h3>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white transition-colors"
-            aria-label="Schließen"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <h3 id="data-export-title" className="text-lg font-bold text-white">Datenexport (Art. 20 DSGVO)</h3>
+          <button onClick={close} className="p-2 text-gray-400 hover:text-white transition-colors" aria-label="Schließen">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-4 overflow-y-auto max-h-[70vh]">
           <div className="mb-4">
             <p className="text-sm text-gray-300 mb-2">
               Hier können Sie alle Ihre personenbezogenen Daten in einem maschinenlesbaren Format (JSON) herunterladen.
-              Der Export enthält: Profil, Termin-Historie, Benachrichtigungen.
+              Der Export enthält: Profil, Termin-Historie, Benachrichtigungen, Wartelisten-Einträge.
             </p>
-            <p className="text-xs text-gray-500">
-              Rechtliche Grundlage: Art. 20 DSGVO (Recht auf Datenübertragbarkeit)
-            </p>
+            <p className="text-xs text-gray-500">Rechtliche Grundlage: Art. 15 und Art. 20 DSGVO</p>
           </div>
 
-          {isExporting ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <svg className="animate-spin h-8 w-8 text-yellow-500" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+              <Spinner className="h-8 w-8 text-yellow-500" />
               <span className="ml-3 text-white">Daten werden geladen...</span>
             </div>
           ) : exportData ? (
             <div className="space-y-4">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-center">
-                  <p className="text-2xl font-bold text-yellow-500">{exportData.profile ? 1 : 0}</p>
-                  <p className="text-xs text-gray-400">Profil</p>
-                </div>
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-center">
-                  <p className="text-2xl font-bold text-yellow-500">{exportData.appointments.length}</p>
-                  <p className="text-xs text-gray-400">Termine</p>
-                </div>
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10 text-center">
-                  <p className="text-2xl font-bold text-yellow-500">{exportData.alerts.length}</p>
-                  <p className="text-xs text-gray-400">Benachrichtigungen</p>
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  ['Profil', exportData.user ? 1 : 0],
+                  ['Termine', exportData.appointments.length],
+                  ['Benachrichtigungen', exportData.alerts.length],
+                  ['Warteliste', exportData.waitlist.length],
+                ].map(([label, count]) => (
+                  <div key={label} className="p-3 bg-white/5 rounded-lg border border-white/10 text-center">
+                    <p className="text-2xl font-bold text-yellow-500">{count}</p>
+                    <p className="text-xs text-gray-400">{label}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* JSON Preview */}
               <div className="border border-white/10 rounded-lg overflow-hidden">
                 <div className="flex items-center justify-between p-3 bg-white/5 border-b border-white/10">
                   <span className="text-sm font-medium text-white">JSON-Vorschau</span>
-                  <span className="text-xs text-gray-500">
-                    {Math.round(new Blob([previewJson]).size / 1024)} KB
-                  </span>
+                  <span className="text-xs text-gray-500">{Math.round(new Blob([previewJson]).size / 1024)} KB</span>
                 </div>
-                <pre className="p-4 max-h-96 overflow-auto text-xs text-gray-300 font-mono bg-black">
-                  {previewJson}
-                </pre>
+                <pre className="p-4 max-h-96 overflow-auto text-xs text-gray-300 font-mono bg-black">{previewJson}</pre>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleDownload}
-                  className="flex-1 py-3 bg-yellow-500 text-black font-bold uppercase tracking-widest text-sm rounded-lg hover:bg-yellow-400 transition-colors"
-                >
+                <button onClick={handleDownload} className="flex-1 py-3 bg-yellow-500 text-black font-bold uppercase tracking-widest text-sm rounded-lg hover:bg-yellow-400 transition-colors">
                   JSON herunterladen
                 </button>
-                <button
-                  onClick={onClose}
-                  className="flex-1 py-3 border border-white/30 text-white font-bold uppercase tracking-widest text-sm rounded-lg hover:bg-white/10 transition-colors"
-                >
+                <button onClick={close} className="flex-1 py-3 border border-white/30 text-white font-bold uppercase tracking-widest text-sm rounded-lg hover:bg-white/10 transition-colors">
                   Schließen
                 </button>
               </div>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-400">
-              Keine Daten verfügbar.
+              {loadError ? `Fehler beim Laden: ${loadError}` : 'Keine Daten verfügbar.'}
             </div>
           )}
         </div>

@@ -38,7 +38,7 @@ export function Navbar() {
             <div className="relative group mx-2">
               <button onClick={() => setPage('profile')} className="w-10 h-10 rounded-full flex items-center justify-center border overflow-hidden transition-all border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-black">
                 {currentUser.photoURL ? (
-                  <img src={currentUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={currentUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                 )}
@@ -66,13 +66,13 @@ export function Navbar() {
         <div className="flex lg:hidden items-center gap-2 z-50 relative">
           <NotificationBell />
           {!currentUser ? (
-             <button onClick={() => setPage('auth')} className="p-2 text-gray-400 hover:text-white">
+             <button onClick={() => setPage('auth')} aria-label="Anmelden" className="p-2 text-gray-400 hover:text-white">
                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
              </button>
            ) : (
              <button onClick={() => { setMobileMenuOpen(false); setPage('profile'); }} className="w-8 h-8 rounded-full flex items-center justify-center border overflow-hidden border-[#d4af37] text-[#d4af37]">
                {currentUser.photoURL ? (
-                 <img src={currentUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                 <img loading="lazy" decoding="async" src={currentUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                 )}
@@ -81,7 +81,7 @@ export function Navbar() {
            
            <LanguageSelector />
 
-           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white focus:outline-none">
+           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? "Menü schließen" : "Menü öffnen"} aria-expanded={mobileMenuOpen} className="p-2 text-white focus:outline-none">
              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                {mobileMenuOpen ? (
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

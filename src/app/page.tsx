@@ -1,18 +1,15 @@
 ﻿"use client";
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Link from 'next/link';
-import { auth, db, getGoogleProvider, getFacebookProvider } from '../lib/firebase';
-import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, verifyBeforeUpdateEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
-import { doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import React, { useState, useEffect, useCallback } from 'react';
+import { db } from '../lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import { uploadReferenceImage, uploadSiteAsset } from '@/lib/storage';
-import { DataExportButton, DataExportModal } from '@/components/DataExport';
-import { DeleteAccountButton, AccountDeletionModal } from '@/components/AccountDeletion';
 import { ProfileView } from '@/components/ProfileView';
 import { Navbar } from '@/components/Navbar';
+import { LanguageSelector } from '@/components/LanguageSelector';
+import { NotificationBell } from '@/components/NotificationBell';
 import { BookingCalendar } from '@/components/BookingCalendar';
-import { getInternalHeaders } from '@/lib/validation';
 import { describeSchedule, WEEKDAY_ORDER, CLOSED_WEEKDAYS, SALON_OPEN_MINS, CLOSING_TIME_MINS, minsToTime, timeToMins, WeeklySchedule } from '@/lib/schedule';
-import { AppProvider, useApp, Appointment, ServiceItem, ProductItem, fallbackTranslations, initialSlots, ADMIN_ALERT_USER_ID, toLocalDateStr, TimeSlot, UserProfile, WaitlistItem, StylistItem, Guest } from '@/context/AppContext';
+import { AppProvider, useApp, ServiceItem, ProductItem, fallbackTranslations, initialSlots, toLocalDateStr, TimeSlot, StylistItem, Guest } from '@/context/AppContext';
 
 const countryCodes = [
   { code: '+49', label: 'Deutschland 🇩🇪' }, { code: '+43', label: 'Österreich 🇦🇹' }, { code: '+41', label: 'Schweiz 🇨🇭' },
@@ -21,103 +18,6 @@ const countryCodes = [
   { code: '+32', label: 'Belgien 🇧🇪' }, { code: '+48', label: 'Polen 🇵🇱' }, { code: '+46', label: 'Schweden 🇸🇪' },
 ];
 
-
-function LanguageSelector() {
-  const { lang, changeLanguage, isTranslatingUI, t } = useApp();
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  
-  const languages = [
-    { code: 'de', name: 'Deutsch' }, { code: 'en', name: 'English' }, { code: 'es', name: 'Español' },
-    { code: 'fr', name: 'Français' }, { code: 'it', name: 'Italiano' }, { code: 'nl', name: 'Nederlands' },
-    { code: 'tr', name: 'Türkçe' }, { code: 'pl', name: 'Polski' }, { code: 'ru', name: 'Русский' },
-    { code: 'ar', name: 'العربية' }, { code: 'zh', name: '中文' }, { code: 'ja', name: '日本語' }
-  ];
-
-  const filteredLangs = languages.filter(l => l.name.toLowerCase().includes(search.toLowerCase()) || l.code.toLowerCase().includes(search.toLowerCase()));
-  const currentLangName = languages.find(l => l.code === lang)?.name || lang.toUpperCase();
-
-  return (
-    <div className="relative z-50 ml-2">
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
-        disabled={isTranslatingUI}
-        className="flex items-center gap-2 px-3 py-1.5 border rounded-full text-xs font-bold transition-colors border-gray-700 text-gray-300 hover:text-white"
-      >
-        {isTranslatingUI ? (
-          <span className="animate-pulse">{t.common?.loading || 'Lädt...'}</span>
-        ) : (
-          <>
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            {currentLangName}
-          </>
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 border rounded-sm shadow-2xl p-2 animate-in fade-in zoom-in-95 bg-[#111] border-white/10">
-          <input 
-            type="text" 
-            placeholder={t.common?.searchLang || "Sprache suchen..."} 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-black border p-2 rounded-sm text-xs text-white outline-none mb-2 border-white/20 focus:border-[#d4af37]"
-          />
-          <div className="max-h-48 overflow-y-auto pr-1 space-y-1 custom-scrollbar">
-            {filteredLangs.map(l => (
-              <button 
-                key={l.code}
-                onClick={() => { changeLanguage(l.code); setIsOpen(false); setSearch(''); }}
-                className={`w-full text-left px-2 py-1.5 text-xs rounded-sm transition-colors ${lang === l.code ? 'bg-[#d4af37] text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
-              >
-                {l.name}
-              </button>
-            ))}
-            {filteredLangs.length === 0 && <p className="text-gray-500 text-[10px] p-2">{t.common?.noResults || "Keine gefunden."}</p>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NotificationBell() {
-  const { alerts, currentUser, markAlertRead, clearAlerts, setPage, setFocusedAppointmentId, t } = useApp();
-  const [isOpen, setIsOpen] = useState(false);
-  
-  if (!currentUser) return null;
-
-  const userAlerts = alerts.filter(a => a.userId === currentUser.id || a.userId === ADMIN_ALERT_USER_ID).sort((a,b) => b.createdAt - a.createdAt);
-  const unreadCount = userAlerts.filter(a => !a.isRead).length;
-
-  const notifTrans = t.notifications || fallbackTranslations.de.notifications;
-
-  return (
-    <div className="relative group mx-2">
-      <button onClick={() => { if (currentUser.role === 'admin' && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission(); setIsOpen(!isOpen); }} className="relative p-2 rounded-full border transition-colors border-white/10 text-[#d4af37] hover:bg-[#d4af37] hover:text-black">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-        {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border border-black flex items-center justify-center text-white text-[10px] font-bold shadow-lg animate-pulse">{unreadCount}</span>}
-      </button>
-      
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 border rounded-sm shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 bg-[#111] border-white/10">
-          <h4 className="text-[10px] uppercase font-bold text-gray-500 mb-2 px-2 tracking-widest">{notifTrans?.title || 'Benachrichtigungen'}</h4>
-          <div className="max-h-64 overflow-y-auto custom-scrollbar">
-            {userAlerts.length === 0 ? <p className="text-xs text-gray-500 px-2 italic pb-2">{notifTrans?.empty || 'Keine'}</p> : 
-              userAlerts.map(a => (
-                <div key={a.id} onClick={() => { markAlertRead(a.id); if (a.appointmentId) setFocusedAppointmentId(a.appointmentId); setPage(a.link); setIsOpen(false); }} className={`p-3 border-b border-gray-800 cursor-pointer transition-colors rounded-sm ${!a.isRead ? 'bg-white/5' : 'hover:bg-white/5'}`}>
-                  <p className={`text-xs ${!a.isRead ? 'text-white font-bold' : 'text-gray-400'}`}>{a.message}</p>
-                  <p className="text-[9px] text-gray-600 mt-1 uppercase tracking-widest">{new Date(a.createdAt).toLocaleString()}</p>
-                </div>
-              ))
-            }
-          </div>
-          {userAlerts.length > 0 && <button onClick={() => { clearAlerts(); setIsOpen(false); }} className="w-full text-center text-[10px] text-red-400 hover:text-red-300 uppercase tracking-widest mt-2 pt-2 border-t border-gray-800">{notifTrans?.clearAll || 'Alle löschen'}</button>}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ToastContainer() {
   const { notifications } = useApp();
@@ -178,7 +78,7 @@ function AuthView() {
   return (
     <div className="flex min-h-screen pt-20 relative">
       <div className="hidden lg:block lg:w-1/2 relative bg-black/50">
-        <img src="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=1600&q=80" alt="Login Background" className="w-full h-full object-cover grayscale-50 opacity-40" />
+        <img decoding="async" src="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=1600&q=80" alt="Login Background" className="w-full h-full object-cover grayscale-50 opacity-40" />
       </div>
       <div className="w-full lg:w-1/2 flex items-center justify-center px-4 md:px-8 py-12">
         <div className="w-full max-w-md animate-in fade-in slide-in-from-right-8 duration-1000">
@@ -259,323 +159,6 @@ function AuthView() {
           </form>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ProfileViewLocal() {
-  const { t, currentUser, appointments, addNotification, updateUserPassword, updateAppointmentStatus } = useApp();
-  const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview');
-  
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editCountryCode, setEditCountryCode] = useState('+49');
-  const [editPhone, setEditPhone] = useState('');
-
-  // Password Update State
-  const [oldPass, setOldPass] = useState('');
-  const [newPass, setNewPass] = useState('');
-  const [confirmPass, setConfirmPass] = useState('');
-  const [generatedPassOTP, setGeneratedPassOTP] = useState('');
-  const [inputPassOTP, setInputPassOTP] = useState('');
-  const [isVerifyingPassOTP, setIsVerifyingPassOTP] = useState(false);
-
-  const primaryColor = 'text-[#d4af37]';
-  const bgBorder = 'border-white/10 bg-[#111]';
-
-  const secTrans = t.security || fallbackTranslations.de.security;
-  const authTrans = t.auth || fallbackTranslations.de.auth;
-
-  const isEmailProvider = auth.currentUser?.providerData.some(p => p.providerId === 'password');
-  const [showForcePasswordModal, setShowForcePasswordModal] = useState(false);
-
-  useEffect(() => {
-    if (currentUser && isEmailProvider && currentUser.hasUpdatedPassword !== true) {
-      setShowForcePasswordModal(true);
-    }
-  }, [currentUser, isEmailProvider]);
-
-  useEffect(() => {
-    if (currentUser) {
-      setEditName(currentUser.name);
-      setEditEmail(currentUser.email);
-      let pNum = currentUser.phone || "";
-      let cCode = "+49";
-      for (let c of countryCodes) {
-        if (pNum.startsWith(c.code)) { cCode = c.code; pNum = pNum.replace(c.code, "").trim(); break; }
-      }
-      setEditCountryCode(cCode);
-      setEditPhone(pNum);
-    }
-  }, [currentUser]);
-
-  if (!currentUser) return null;
-
-  const handleUpdateSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editEmail !== currentUser.email && auth.currentUser) {
-        await verifyBeforeUpdateEmail(auth.currentUser, editEmail);
-        addNotification("Bestätigungs-E-Mail gesendet! Bitte prüfen Sie Ihren Posteingang.", "info");
-      }
-      const fullPhone = `${editCountryCode}${editPhone}`.replace(/\s+/g, '');
-      await updateDoc(doc(db, 'users', currentUser.id), { name: editName, phone: fullPhone });
-      addNotification("Profil erfolgreich aktualisiert!", "success");
-      setActiveTab('overview');
-    } catch (err: any) { addNotification(err.message, "error"); }
-  };
-
-  const handleSendPassOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPass !== confirmPass) return addNotification("Passwörter stimmen nicht überein.", "error");
-    if (newPass.length < 8) return addNotification("Passwort muss mindestens 8 Zeichen lang sein.", "error");
-    
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedPassOTP(otp);
-    setIsVerifyingPassOTP(true);
-    
-    try {
-      const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
-      await fetch('/api/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          email: currentUser.email,
-          subject: "Rebo Salon: Passwortänderung Bestätigung",
-          message: `Hallo ${currentUser.name},\n\nDein Bestätigungscode zur Passwortänderung lautet: ${otp}\n\nFalls du diese Änderung nicht angefordert hast, ignoriere diese E-Mail.\n\nDein Rebo Salon Team`
-        })
-      });
-      addNotification("Bestätigungscode an E-Mail gesendet!", "info");
-    } catch (err) { addNotification("Fehler beim Senden Codes.", "error"); setIsVerifyingPassOTP(false); }
-  };
-
-  const handleVerifyPassOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputPassOTP !== generatedPassOTP) return addNotification("Ungültiger Code. Bitte erneut versuchen.", "error");
-    try {
-      await updateUserPassword(oldPass, newPass);
-      setOldPass(''); setNewPass(''); setConfirmPass(''); setInputPassOTP(''); setIsVerifyingPassOTP(false);
-      setShowForcePasswordModal(false);
-    } catch (err: any) {
-      addNotification(err.message, "error");
-    }
-  };
-
-  const hasLength = newPass.length >= 8;
-  const hasUpper = /[A-Z]/.test(newPass);
-  const hasLower = /[a-z]/.test(newPass);
-  const hasNum = /[0-9]/.test(newPass);
-  const hasSpec = /[^A-Za-z0-9]/.test(newPass);
-  const passScore = [hasLength, hasUpper, hasLower, hasNum, hasSpec].filter(Boolean).length;
-  const passWidth = `${(passScore / 5) * 100}%`;
-  const passColor = passScore <= 2 ? 'bg-red-500' : passScore <= 4 ? 'bg-yellow-500' : 'bg-green-500';
-  const passLabel = passScore <= 2 ? (authTrans.weak || 'Schwach') : passScore <= 4 ? (authTrans.medium || 'Mittel') : (authTrans.strong || 'Stark');
-
-  const userAppts = appointments.filter((a: any) => a.userId === currentUser.id).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const upcoming = userAppts.filter((a: any) => a.status === 'pending' || a.status === 'proposed');
-  const past = userAppts.filter((a: any) => a.status === 'confirmed');
-
-  return (
-    <div className="min-h-screen pt-28 md:pt-32 px-4 md:px-6 max-w-4xl mx-auto animate-in fade-in duration-500 pb-20 relative">
-      
-      {showForcePasswordModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-          <div className="p-8 md:p-10 border rounded-sm shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-300 bg-[#111] border-white/20">
-            <h3 className="text-2xl font-bold mb-2 uppercase text-red-400">{secTrans.title}</h3>
-            <p className="text-gray-400 text-sm mb-6 leading-relaxed">{secTrans.desc}</p>
-            
-            {!isVerifyingPassOTP ? (
-              <form onSubmit={handleSendPassOTP} className="space-y-4">
-                 <div>
-                   <label className="block text-xs uppercase text-gray-400 mb-2">{secTrans.currentPass}</label>
-                   <input required type="password" value={oldPass} onChange={e=>setOldPass(e.target.value)} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
-                 </div>
-                 <div>
-                   <label className="block text-xs uppercase text-gray-400 mb-2">{secTrans.newPass}</label>
-                   <input required type="password" value={newPass} onChange={e=>setNewPass(e.target.value)} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white mb-2" />
-                   {newPass.length > 0 && (
-                      <div className="mb-4">
-                        <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden mb-2"><div className={`h-full transition-all duration-300 ${passColor}`} style={{ width: passWidth }} /></div>
-                      </div>
-                   )}
-                 </div>
-                 <div>
-                   <label className="block text-xs uppercase text-gray-400 mb-2">{secTrans.confirmPass}</label>
-                   <input required type="password" value={confirmPass} onChange={e=>setConfirmPass(e.target.value)} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
-                 </div>
-                 <button type="submit" disabled={!hasLength} className="w-full py-4 font-bold uppercase text-xs rounded-sm mt-4 disabled:opacity-50 bg-[#d4af37] text-black">{secTrans.sendCode}</button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyPassOTP} className="space-y-5">
-                <div>
-                  <label className="block text-xs uppercase text-gray-400 mb-2">{secTrans.enterCode}</label>
-                  <input required type="text" maxLength={6} value={inputPassOTP} onChange={e => setInputPassOTP(e.target.value)} placeholder="------" className="w-full border border-white/20 rounded-sm p-4 outline-none text-2xl tracking-[0.5em] text-center font-mono bg-black text-white" />
-                </div>
-                <div className="flex gap-4 mt-8">
-                  <button type="button" onClick={() => setIsVerifyingPassOTP(false)} className="flex-1 py-4 uppercase text-xs font-bold text-gray-400 border border-gray-700 hover:text-white rounded-sm transition-colors">{secTrans.cancel}</button>
-                  <button type="submit" className="flex-1 py-4 uppercase text-xs font-bold text-black rounded-sm transition-colors bg-[#d4af37] hover:bg-white">{secTrans.confirmBtn}</button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-gray-800 pb-4 gap-4">
-         <div>
-           <h2 className="text-3xl md:text-5xl font-bold mb-2 uppercase tracking-tight">{t.profile.title}</h2>
-           <p className="text-gray-400 text-sm md:text-base">{t.profile?.welcome || "Willkommen zurück"}, {currentUser.name}</p>
-         </div>
-         <div className="flex gap-2 bg-black border border-white/10 p-1 rounded-sm">
-            <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors ${activeTab === 'overview' ? 'bg-[#d4af37] text-black' : 'text-gray-400 hover:text-white'}`}>{t.profile?.overview || "Übersicht"}</button>
-            <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 text-xs uppercase font-bold tracking-widest transition-colors ${activeTab === 'settings' ? 'bg-[#d4af37] text-black' : 'text-gray-400 hover:text-white'}`}>{t.profile?.settings || "Einstellungen"}</button>
-         </div>
-      </div>
-
-      {activeTab === 'settings' ? (
-        <div className={`p-6 md:p-10 border rounded-sm shadow-xl space-y-10 ${bgBorder}`}>
-           <form onSubmit={handleUpdateSettings} className="space-y-6">
-             <h3 className="text-xl font-bold mb-4">{t.profile?.editProfile || "Profil bearbeiten"}</h3>
-             <div>
-               <label className="block text-xs uppercase text-gray-400 mb-2">Vollständiger Name</label>
-               <input required value={editName} onChange={e=>setEditName(e.target.value)} type="text" className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
-             </div>
-             <div>
-               <label className="block text-xs uppercase text-gray-400 mb-2">E-Mail-Adresse (Änderung erfordert Bestätigung)</label>
-               <input required value={editEmail} onChange={e=>setEditEmail(e.target.value)} type="email" className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
-             </div>
-             <div>
-               <label className="block text-xs uppercase text-gray-400 mb-2">Telefonnummer</label>
-               <div className="flex gap-2">
-                  <select value={editCountryCode} onChange={e=>setEditCountryCode(e.target.value)} className="w-[30%] bg-black border border-white/20 p-4 rounded-sm text-white">
-                    {countryCodes.map(c => <option key={c.code} value={c.code}>{c.code} {c.label}</option>)}
-                  </select>
-                  <input required value={editPhone} onChange={e=>setEditPhone(e.target.value)} type="tel" className="w-[70%] bg-black border border-white/20 p-4 rounded-sm text-white" />
-               </div>
-             </div>
-             <button type="submit" className="w-full py-4 font-bold uppercase text-xs rounded-sm bg-[#d4af37] text-black">Einstellungen speichern</button>
-           </form>
-
-           <div className="border-t border-gray-800 pt-8">
-              <h3 className="text-xl font-bold mb-4 text-red-400">{secTrans.secTitle}</h3>
-              {!isEmailProvider ? (
-                <p className="text-sm text-gray-500 italic">{secTrans.oauthMsg}</p>
-              ) : !isVerifyingPassOTP ? (
-                <form onSubmit={handleSendPassOTP} className="space-y-4">
-                   <div>
-                     <label className="block text-xs uppercase text-gray-400 mb-2">{secTrans.currentPass}</label>
-                     <input required type="password" value={oldPass} onChange={e=>setOldPass(e.target.value)} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
-                   </div>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div>
-                       <label className="block text-xs uppercase text-gray-400 mb-2">{secTrans.newPass}</label>
-                       <input required type="password" value={newPass} onChange={e=>setNewPass(e.target.value)} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white mb-2" />
-                       {newPass.length > 0 && (
-                          <div className="mt-2 p-3 bg-black/40 border border-white/5 rounded-sm">
-                            <div className="flex justify-between items-center text-[10px] mb-2 uppercase tracking-widest"><span className="text-gray-500">{authTrans.passStrength || 'Stärke:'}</span><span className={passColor.replace('bg-', 'text-')}>{passLabel}</span></div>
-                            <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden mb-2"><div className={`h-full transition-all duration-300 ${passColor}`} style={{ width: passWidth }} /></div>
-                            <ul className="text-[9px] text-gray-500 grid grid-cols-2 gap-1">
-                              <li className={hasLength ? 'text-green-400' : ''}>{hasLength ? '✓' : '○'} {authTrans.ruleLength || '8+ Zeichen'}</li>
-                              <li className={hasUpper ? 'text-green-400' : ''}>{hasUpper ? '✓' : '○'} {authTrans.ruleUpper || 'Großbuchstabe'}</li>
-                              <li className={hasLower ? 'text-green-400' : ''}>{hasLower ? '✓' : '○'} {authTrans.ruleLower || 'Kleinbuchstabe'}</li>
-                              <li className={hasNum ? 'text-green-400' : ''}>{hasNum ? '✓' : '○'} {authTrans.ruleNum || 'Zahl'}</li>
-                              <li className={hasSpec ? 'text-green-400' : ''}>{hasSpec ? '✓' : '○'} {authTrans.ruleSpec || 'Sonderzeichen'}</li>
-                            </ul>
-                          </div>
-                       )}
-                     </div>
-                     <div>
-                       <label className="block text-xs uppercase text-gray-400 mb-2">{secTrans.confirmPass}</label>
-                       <input required type="password" value={confirmPass} onChange={e=>setConfirmPass(e.target.value)} className="w-full bg-black border border-white/20 p-4 rounded-sm text-white" />
-                     </div>
-                   </div>
-                   <button type="submit" disabled={!hasLength} className="w-full md:w-auto px-8 py-3 bg-red-600/20 text-red-400 border border-red-600 font-bold uppercase text-xs rounded-sm mt-4 hover:bg-red-600 hover:text-white transition-colors disabled:opacity-50">{secTrans.sendOtpBtn}</button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyPassOTP} className="space-y-4 max-w-sm">
-                  <div>
-                    <label className="block text-xs uppercase text-gray-400 mb-2">{secTrans.enterCode}</label>
-                    <input required type="text" maxLength={6} value={inputPassOTP} onChange={e => setInputPassOTP(e.target.value)} placeholder="------" className="w-full border border-white/20 rounded-sm p-4 outline-none text-2xl tracking-[0.5em] text-center font-mono bg-black text-white" />
-                  </div>
-                  <div className="flex gap-4 mt-4">
-                    <button type="button" onClick={() => setIsVerifyingPassOTP(false)} className="flex-1 py-3 uppercase text-xs font-bold text-gray-400 border border-gray-700 hover:text-white rounded-sm transition-colors">{secTrans.cancel}</button>
-                    <button type="submit" className="flex-1 py-3 uppercase text-xs font-bold text-black rounded-sm transition-colors bg-[#d4af37] hover:bg-white">{secTrans.confirmBtn}</button>
-                  </div>
-                </form>
-              )}
-           </div>
-        </div>
-      ) : (
-        <>
-          <div className={`p-6 md:p-8 mb-6 border rounded-sm flex items-center justify-between shadow-xl ${bgBorder}`}>
-            <div>
-              <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">{t.profile?.contactData || "Kontaktdaten"}</p>
-              <p className="text-lg font-bold">{currentUser.email}</p>
-              <p className="text-gray-300 mt-1">{currentUser.phone || t.profile?.noPhone || "Keine Telefonnummer gespeichert. Bitte in settings hinzufügen."}</p>
-            </div>
-            <button onClick={() => setActiveTab('settings')} className="p-3 border border-white/20 rounded-sm hover:bg-white/5 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-            </button>
-          </div>
-
-          <div className={`p-6 md:p-8 mb-10 border rounded-sm shadow-xl ${bgBorder}`}>
-            <h3 className="text-lg md:text-xl font-bold mb-2">{t.profile.pointsTitle}</h3>
-            <p className="text-xs md:text-sm text-gray-400 mb-6">{t.profile.pointsDesc}</p>
-            <div className="w-full h-4 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
-              <div className="h-full transition-all duration-1000 bg-[#d4af37]" style={{ width: `${(currentUser.haircutCount / 10) * 100}%` }} />
-            </div>
-            <p className={`text-right mt-2 text-sm font-bold ${primaryColor}`}>{currentUser.haircutCount} / 10</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-lg md:text-xl font-bold mb-6">{t.profile.upcomingTitle}</h3>
-              <div className="space-y-4">
-                {upcoming.map((a: any) => {
-                  const sList = Array.isArray(a.services) ? a.services.join(', ') : (a as any).service || 'Leistung';
-                  return (
-                    <div key={a.id} className={`p-5 border rounded-sm ${bgBorder}`}>
-                      <p className="font-bold text-base">{sList}</p>
-                      <p className="text-xs text-gray-400 mb-3">{a.date} {t.common?.at || 'um'} {a.time} {t.common?.by || 'bei'} {a.stylist} ({a.totalDurationMins || 60} {t.services?.min || 'Minuten'})</p>
-                      
-                      {a.status === 'proposed' ? (
-                        <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-sm">
-                          <p className="text-blue-400 text-xs font-bold mb-2">⚠️ {t.profile?.newProposal || "Neuer Terminvorschlag vom Salon:"}</p>
-                          <p className="text-white text-sm mb-3">{a.proposedDate} um {a.proposedTime} Uhr</p>
-                          <div className="flex gap-2">
-                            <button onClick={() => updateAppointmentStatus(a.id, 'confirmed', true, undefined, a.proposedDate, a.proposedTime)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 text-xs font-bold uppercase rounded-sm">{t.profile?.acceptTime || "Zeit Akzeptieren"}</button>
-                            <button onClick={() => updateAppointmentStatus(a.id, 'cancelled', false)} className="border border-red-500/50 text-red-400 hover:bg-red-500/10 px-3 py-1.5 text-xs font-bold uppercase rounded-sm">{t.profile?.cancel || "Stornieren"}</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] uppercase bg-yellow-600/20 text-yellow-400 border border-yellow-600 px-3 py-1 rounded-sm">{t.profile?.pending || "Ausstehend"}</span>
-                      )}
-                    </div>
-                  );
-                })}
-                {upcoming.length === 0 && <p className="text-gray-500 text-sm">{t.profile.noHistory}</p>}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg md:text-xl font-bold mb-6">{t.profile.historyTitle}</h3>
-              <div className="space-y-4">
-                {past.map((a: any) => {
-                  const sList = Array.isArray(a.services) ? a.services.join(', ') : (a as any).service || 'Leistung';
-                  return (
-                    <div key={a.id} className={`p-5 border rounded-sm ${bgBorder}`}>
-                      <p className="font-bold text-base">{sList}</p>
-                      <p className="text-xs text-gray-400 mb-3">{a.date} {t.common?.by || 'bei'} {a.stylist}</p>
-                      <span className="text-[10px] uppercase bg-green-600/20 text-green-400 border border-green-600 px-3 py-1 rounded-sm">{t.profile?.completed || "Abgeschlossen"}</span>
-                    </div>
-                  );
-                })}
-                {past.length === 0 && <p className="text-gray-500 text-sm">{t.profile.noHistory}</p>}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
@@ -684,7 +267,7 @@ function StylistScheduleEditor({ stylist }: { stylist: StylistItem }) {
 }
 
 function AdminView() {
-  const { lang, appointments, updateAppointmentStatus, servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock, t, usersDB, updateUserNotes, addAdminAppointment, waitlist, notifyWaitlist, removeFromWaitlist, resendConfirmation, stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings, addNotification, getTranslatedServices, getTranslatedStylists, getTranslatedProducts, focusedAppointmentId, setFocusedAppointmentId } = useApp();
+  const { getAuthHeaders, lang, appointments, updateAppointmentStatus, servicesDB, addService, deleteService, productsDB, addProduct, deleteProduct, updateProductStock, t, usersDB, updateUserNotes, addAdminAppointment, waitlist, notifyWaitlist, removeFromWaitlist, resendConfirmation, stylistsDB, addStylist, deleteStylist, generalSettings, updateGeneralSettings, addNotification, getTranslatedServices, getTranslatedStylists, getTranslatedProducts, focusedAppointmentId, setFocusedAppointmentId } = useApp();
   const [tab, setTab] = useState<'appointments' | 'calendar' | 'services' | 'products' | 'clients' | 'waitlist' | 'team' | 'settings' | 'gallery'>('appointments');
 
   // Opened from a notification: show the requests tab, scroll to that appointment, then drop the highlight
@@ -748,7 +331,11 @@ function AdminView() {
   const translatedProducts = getTranslatedProducts();
   const [galleryImagesInput, setGalleryImagesInput] = useState<string[]>([]);
 
-  useEffect(() => {
+  // Refill the settings form whenever the saved settings change (adjusting state while
+  // rendering avoids the extra render pass an effect would cause)
+  const [syncedSettings, setSyncedSettings] = useState<typeof generalSettings | null>(null);
+  if (generalSettings !== syncedSettings) {
+     setSyncedSettings(generalSettings);
      setWalkinWaitTimeInput(generalSettings?.walkinWaitTime || '');
      setHeroImageInput(generalSettings?.heroImage || '');
      setAboutImageInput(generalSettings?.aboutImage || '');
@@ -757,7 +344,7 @@ function AdminView() {
      setAboutTitleEnInput(generalSettings?.aboutTitleEn || '');
      setAboutTextEnInput(generalSettings?.aboutTextEn || '');
      setGalleryImagesInput(generalSettings?.galleryImages || []);
-  }, [generalSettings]);
+  }
 
   const handleSiteAssetUpload = async (file: File | undefined, type: 'hero' | 'about') => {
     if (!file) return;
@@ -852,29 +439,31 @@ function AdminView() {
     if (!serviceNameDe) return;
     setIsTranslatingService(true);
     try {
-      const headers = await getInternalHeaders();
+      const headers = await getAuthHeaders();
       const res = await fetch('/api/translate', { method: 'POST', headers, body: JSON.stringify({ text: serviceNameDe, targetLang: 'en' }) });
       const data = await res.json();
       if (data.translatedText) setServiceNameEn(data.translatedText);
-    } catch (e) {} finally { setIsTranslatingService(false); }
+      else addNotification(data.error || "Übersetzung fehlgeschlagen.", "error");
+    } catch { addNotification("Übersetzung fehlgeschlagen.", "error"); } finally { setIsTranslatingService(false); }
   };
 
   const handleTranslateProduct = async () => {
     if (!productNameDe && !productDescDe) return;
     setIsTranslatingProduct(true);
     try {
-      const headers = await getInternalHeaders();
+      const headers = await getAuthHeaders();
       if (productNameDe) {
         const resName = await fetch('/api/translate', { method: 'POST', headers, body: JSON.stringify({ text: productNameDe, targetLang: 'en' }) });
         const dataName = await resName.json();
         if (dataName.translatedText) setProductNameEn(dataName.translatedText);
+        else addNotification(dataName.error || "Übersetzung fehlgeschlagen.", "error");
       }
       if (productDescDe) {
         const resDesc = await fetch('/api/translate', { method: 'POST', headers, body: JSON.stringify({ text: productDescDe, targetLang: 'en' }) });
         const dataDesc = await resDesc.json();
         if (dataDesc.translatedText) setProductDescEn(dataDesc.translatedText);
       }
-    } catch (e) {} finally { setIsTranslatingProduct(false); }
+    } catch { addNotification("Übersetzung fehlgeschlagen.", "error"); } finally { setIsTranslatingProduct(false); }
   };
 
   const handleAddServiceSubmit = async (e: React.FormEvent) => {
@@ -1007,7 +596,7 @@ function AdminView() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
              {galleryImagesInput.map((img, idx) => (
                 <div key={idx} className="relative group aspect-square rounded-sm overflow-hidden border border-white/10">
-                   <img src={img} className="w-full h-full object-cover grayscale-20 group-hover:grayscale-0 transition-all" alt="Gallery" />
+                   <img loading="lazy" decoding="async" src={img} className="w-full h-full object-cover grayscale-20 group-hover:grayscale-0 transition-all" alt="Gallery" />
                    
                    {/* Hover Action Menu for Replace & Delete */}
                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
@@ -1120,14 +709,14 @@ function AdminView() {
                           <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.heroImg || 'Hero Hintergrundbild'}</label>
                           <div className="flex items-center gap-4 bg-black border border-white/20 p-2 rounded-sm">
                               <input type="file" accept="image/*" disabled={isUploadingHero} onChange={e => handleSiteAssetUpload(e.target.files?.[0], 'hero')} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:cursor-pointer disabled:opacity-50" />
-                              {isUploadingHero ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span> : heroImageInput && <img src={heroImageInput} alt="Hero Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
+                              {isUploadingHero ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span> : heroImageInput && <img loading="lazy" decoding="async" src={heroImageInput} alt="Hero Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
                           </div>
                       </div>
                       <div>
                           <label className="block text-xs uppercase text-gray-400 mb-1">{t.admin?.settings?.aboutImg || 'Profilbild'}</label>
                           <div className="flex items-center gap-4 bg-black border border-white/20 p-2 rounded-sm">
                               <input type="file" accept="image/*" disabled={isUploadingAbout} onChange={e => handleSiteAssetUpload(e.target.files?.[0], 'about')} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:bg-white/10 file:text-white file:cursor-pointer disabled:opacity-50" />
-                              {isUploadingAbout ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span> : aboutImageInput && <img src={aboutImageInput} alt="About Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
+                              {isUploadingAbout ? <span className="text-xs text-[#d4af37] animate-pulse whitespace-nowrap pr-4">Lädt...</span> : aboutImageInput && <img loading="lazy" decoding="async" src={aboutImageInput} alt="About Preview" className="h-8 w-8 object-cover rounded-sm border border-white/20" />}
                           </div>
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">
@@ -1321,7 +910,7 @@ function AdminView() {
                         {a.referenceImage && (
                           <div className="mt-3">
                              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">{t.admin?.requests?.refImage || 'Referenzbild:'}</p>
-                             <img src={a.referenceImage} alt="Ref" className="h-24 rounded-sm border border-white/10" />
+                             <img loading="lazy" decoding="async" src={a.referenceImage} alt="Ref" className="h-24 rounded-sm border border-white/10" />
                           </div>
                         )}
                       </div>
@@ -1377,7 +966,7 @@ function AdminView() {
 
                          {a.specialRequests && <p className="text-sm text-yellow-400 mt-2"><strong>Wünsche:</strong> {a.specialRequests}</p>}
                        </div>
-                       {a.referenceImage && <img src={a.referenceImage} alt="Ref" className="h-16 w-16 object-cover rounded-sm border border-white/10" />}
+                       {a.referenceImage && <img loading="lazy" decoding="async" src={a.referenceImage} alt="Ref" className="h-16 w-16 object-cover rounded-sm border border-white/10" />}
                      </div>
                      
                      {a.status === 'confirmed' && (
@@ -1498,7 +1087,7 @@ function AdminView() {
             {translatedProducts.map((p: ProductItem) => (
               <div key={p.id} className={`p-4 flex justify-between items-center border rounded-sm ${bgBorder}`}>
                 <div className="flex items-center gap-4">
-                  <img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-sm" />
+                  <img loading="lazy" decoding="async" src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-sm" />
                   <div>
                     <span className="text-sm md:text-base font-bold">{p.name}</span>
                     <p className="text-xs text-gray-400">{p.price}</p>
@@ -1582,16 +1171,18 @@ function BookingView() {
   // Load everyone's booked times so taken slots show as unavailable
   useEffect(() => { refreshBookedTimes(); }, [refreshBookedTimes]);
 
-  useEffect(() => {
-    if (currentUser) {
-      setBookingName(currentUser.name || "");
-      if (currentUser.phone) {
-        let pNum = currentUser.phone; let cCode = "+49";
-        for (let c of countryCodes) { if (pNum.startsWith(c.code)) { cCode = c.code; pNum = pNum.replace(c.code, "").trim(); break; } }
-        setCountryCode(cCode); setPhoneInput(pNum);
-      }
+  // Prefill name and phone from the profile whenever they change
+  const profileKey = currentUser ? `${currentUser.id}|${currentUser.name}|${currentUser.phone}` : '';
+  const [syncedProfileKey, setSyncedProfileKey] = useState('');
+  if (currentUser && profileKey !== syncedProfileKey) {
+    setSyncedProfileKey(profileKey);
+    setBookingName(currentUser.name || "");
+    if (currentUser.phone) {
+      let pNum = currentUser.phone; let cCode = "+49";
+      for (const c of countryCodes) { if (pNum.startsWith(c.code)) { cCode = c.code; pNum = pNum.replace(c.code, "").trim(); break; } }
+      setCountryCode(cCode); setPhoneInput(pNum);
     }
-  }, [currentUser]);
+  }
 
   const handleToggleService = (srv: ServiceItem) => {
     setSelectedSlot(""); 
@@ -1699,7 +1290,7 @@ function BookingView() {
     <div className="flex flex-col lg:flex-row min-h-screen pt-20">
       <div className="w-full lg:w-1/2 relative h-[30vh] lg:h-auto min-h-64">
         <div className="absolute inset-0 bg-black/40 z-10" />
-        <img src="https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=1600&q=80" alt="Salon" className="w-full h-full object-cover grayscale-30" />
+        <img decoding="async" src="https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=1600&q=80" alt="Salon" className="w-full h-full object-cover grayscale-30" />
         <div className="absolute inset-0 z-20 flex items-center justify-center p-6 md:p-12">
            <h2 className="text-3xl md:text-5xl font-bold text-center leading-tight max-w-md mx-auto text-white uppercase tracking-tighter">
              &quot;{t.booking.quote}&quot;
@@ -1768,7 +1359,7 @@ function BookingView() {
                     <label className="block text-xs uppercase text-gray-400 mb-2">{t.booking?.refImage || "Referenzbild (Optional)"}</label>
                     {refImagePreview ? (
                       <div className="relative group">
-                        <img src={refImagePreview} alt="Preview" className="w-24 h-24 object-cover rounded-sm border border-white/20 mb-2" />
+                        <img loading="lazy" decoding="async" src={refImagePreview} alt="Preview" className="w-24 h-24 object-cover rounded-sm border border-white/20 mb-2" />
                         <button
                           type="button"
                           onClick={clearImageUpload}
@@ -2064,7 +1655,7 @@ function GalleryView({ images, title }: { images: string[]; title: string }) {
             </button>
           )}
 
-          <img
+          <img loading="lazy" decoding="async"
             src={images[openIndex]}
             alt={`Rebo Salon Galerie Bild ${openIndex + 1}`}
             onClick={(e) => e.stopPropagation()}
@@ -2117,7 +1708,7 @@ function MainContent() {
       <main className="grow">
         {page === 'admin' && <AdminView />}
         {page === 'auth' && <AuthView />}
-        {page === 'profile' && <ProfileViewLocal />}
+        {page === 'profile' && <ProfileView />}
         {page === 'booking' && <BookingView />}
         {page === 'contact' && <ContactView />}
         
@@ -2131,7 +1722,7 @@ function MainContent() {
               <div className="absolute inset-0 z-0">
                 <div className="absolute inset-0 bg-black/65 z-10" />
                 <div className="absolute inset-0 bg-linear-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent z-10" />
-                <img 
+                <img fetchPriority="high" decoding="async" 
                   src={generalSettings?.heroImage || "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=1600&q=80"} 
                   className="w-full h-full object-cover grayscale-40" 
                   alt="Salon Background" 
@@ -2313,8 +1904,8 @@ function MainContent() {
               
               <div className="w-full md:w-[40%] relative group max-w-65 sm:max-w-70 md:max-w-[320px] mx-auto md:mx-0 mt-6 md:mt-0">
                 <div className="absolute inset-0 border border-[#d4af37]/50 translate-x-3 translate-y-3 rounded-sm" />
-                <img 
-                  src={translatedGeneralSettings?.aboutImage || "image_0200bf.jpg"} 
+                <img loading="lazy" decoding="async" 
+                  src={translatedGeneralSettings?.aboutImage || "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=800&q=80"} 
                   className="relative z-10 w-full h-auto rounded-sm object-cover aspect-3/4 grayscale-20 shadow-2xl" 
                   alt="Herrenhaarschnitt bei REBO SALON in Schweinfurt" 
                 />
@@ -2338,7 +1929,7 @@ function MainContent() {
           <div className="animate-in fade-in duration-700 w-full pb-20 pt-20">
             <div className="relative h-[30vh] md:h-[40vh] w-full flex items-center justify-center overflow-hidden mb-12">
               <div className="absolute inset-0 bg-black/60 z-10" />
-              <img src="https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=1600&q=80" className="absolute inset-0 w-full h-full object-cover grayscale-30" alt="Services Background" />
+              <img decoding="async" src="https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=1600&q=80" className="absolute inset-0 w-full h-full object-cover grayscale-30" alt="Services Background" />
               <div className="relative z-20 text-center px-4 animate-in slide-in-from-bottom-8 duration-1000">
                 <h2 className="text-3xl md:text-6xl font-bold mb-2 uppercase tracking-tighter">{t.services.title}</h2>
                 <p className="tracking-[0.2em] uppercase text-xs md:text-sm text-[#d4af37]">{t.services.subtitle}</p>
@@ -2380,7 +1971,7 @@ function MainContent() {
               {translatedProducts.map((item: ProductItem, idx: number) => (
                 <div key={item.id} className="rounded-sm flex flex-col justify-between h-full overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-12 duration-700 fill-mode-both bg-[#111] border border-white/10" style={{ animationDelay: `${idx * 150}ms` }}>
                   <div className="w-full aspect-square md:aspect-4/5 overflow-hidden bg-black/50 relative group">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    <img loading="lazy" decoding="async" src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   </div>
                   <div className="p-6 md:p-8 flex flex-col grow relative">
                     <div className="grow">

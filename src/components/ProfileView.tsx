@@ -1,5 +1,7 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { DataExportButton, DataExportModal } from './DataExport';
+import { DeleteAccountButton, AccountDeletionModal } from './AccountDeletion';
 import { useApp, Appointment, fallbackTranslations } from '@/context/AppContext';
 import { auth, db } from '@/lib/firebase';
 import { verifyBeforeUpdateEmail } from 'firebase/auth';
@@ -36,27 +38,27 @@ export function ProfileView() {
   const authTrans = t.auth || fallbackTranslations.de.auth;
 
   const isEmailProvider = auth.currentUser?.providerData.some(p => p.providerId === 'password');
-  const [showForcePasswordModal, setShowForcePasswordModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Email/password accounts that haven't changed their password since the security update must do so
+  const showForcePasswordModal = !!currentUser && !!isEmailProvider && currentUser.hasUpdatedPassword !== true;
 
-  useEffect(() => {
-    if (currentUser && isEmailProvider && currentUser.hasUpdatedPassword !== true) {
-      setShowForcePasswordModal(true);
+  // Refill the form whenever the stored profile changes (adjusting state while rendering
+  // avoids the extra render pass an effect would cause)
+  const profileKey = currentUser ? [currentUser.id, currentUser.name, currentUser.email, currentUser.phone].join('|') : '';
+  const [syncedProfileKey, setSyncedProfileKey] = useState('');
+  if (currentUser && profileKey !== syncedProfileKey) {
+    setSyncedProfileKey(profileKey);
+    setEditName(currentUser.name);
+    setEditEmail(currentUser.email);
+    let pNum = currentUser.phone || "";
+    let cCode = "+49";
+    for (const c of countryCodes) {
+      if (pNum.startsWith(c.code)) { cCode = c.code; pNum = pNum.replace(c.code, "").trim(); break; }
     }
-  }, [currentUser, isEmailProvider]);
-
-  useEffect(() => {
-    if (currentUser) {
-      setEditName(currentUser.name);
-      setEditEmail(currentUser.email);
-      let pNum = currentUser.phone || "";
-      let cCode = "+49";
-      for (let c of countryCodes) {
-        if (pNum.startsWith(c.code)) { cCode = c.code; pNum = pNum.replace(c.code, "").trim(); break; }
-      }
-      setEditCountryCode(cCode);
-      setEditPhone(pNum);
-    }
-  }, [currentUser]);
+    setEditCountryCode(cCode);
+    setEditPhone(pNum);
+  }
 
   if (!currentUser) return null;
 
@@ -104,7 +106,6 @@ export function ProfileView() {
     try {
       await updateUserPassword(oldPass, newPass);
       setOldPass(''); setNewPass(''); setConfirmPass(''); setInputPassOTP(''); setIsVerifyingPassOTP(false);
-      setShowForcePasswordModal(false);
     } catch (err: any) {
       addNotification(err.message, "error");
     }
@@ -253,6 +254,19 @@ export function ProfileView() {
                 </form>
               )}
            </div>
+
+           {/* GDPR self-service, as promised in the privacy policy (Art. 15, 17, 20 DSGVO) */}
+           <div className="border-t border-gray-800 pt-8 space-y-4">
+              <h3 className="text-xl font-bold">Datenschutz</h3>
+              <p className="text-sm text-gray-400">Lade alle über dich gespeicherten Daten herunter oder lösche dein Konto endgültig.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button type="button" onClick={() => setShowExportModal(true)} className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white text-sm font-medium transition-colors">Daten exportieren (Vorschau)</button>
+                <DataExportButton />
+              </div>
+              <DeleteAccountButton onOpenModal={() => setShowDeleteModal(true)} />
+           </div>
+           <DataExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} />
+           <AccountDeletionModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} />
         </div>
       ) : (
         <>
