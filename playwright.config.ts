@@ -16,6 +16,8 @@ dotenv.config({ path: '.env.test' });
 
 export default defineConfig({
   testDir: './tests',
+  // Browser tests only; *.test.ts files under tests/ are Vitest suites
+  testMatch: '**/*.spec.ts',
   fullyParallel: false,
   retries: 0,
   reporter: 'html',

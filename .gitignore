@@ -23,3 +23,13 @@ node_modules/
 
 .vercel
 .env*
+
+# Firebase emulator logs (npm run test:emulator)
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+graphify-out/
+
+# build/test output
+*.tsbuildinfo
+/audit-report/

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateRequest, translateRequestSchema, createAuditLog, logAudit } from '@/lib/validation';
+import { requireAdmin, readJson, errorMessage, HttpError } from '@/lib/apiAuth';
 
-const DEEPL_API_KEY = process.env.DEEPL_API_KEY;
+const DEEPL_API_KEY = process.env.DEEPL_API_KEY?.trim();
 const DEEPL_ENDPOINT = DEEPL_API_KEY?.endsWith(':fx')
   ? 'https://api-free.deepl.com/v2/translate'
   : 'https://api.deepl.com/v2/translate';
@@ -13,21 +14,13 @@ export async function POST(req: NextRequest) {
   let targetLang: string = "";
 
   try {
-    // Verify internal API secret (Required since this is an Admin-only route)
-    const authHeader = req.headers.get('x-internal-secret');
-    if (process.env.INTERNAL_API_SECRET && authHeader !== process.env.INTERNAL_API_SECRET) {
-      const auditLog = createAuditLog(req, undefined, undefined, 'translate', undefined, 'translation', false, 'Invalid internal API secret');
-      logAudit(auditLog);
-      return NextResponse.json({ error: 'Unauthorized request' }, { status: 401 });
-    }
+    // Admin-only (used by the admin panel to translate service/product names).
+    // Uses the admin's Firebase login - a shared secret can't be kept out of the browser.
+    const caller = await requireAdmin(req);
+    userId = caller.uid;
 
-    // Validate request body
-    const body = await req.json();
-    const validation = validateRequest(translateRequestSchema, body);
-
+    const validation = validateRequest(translateRequestSchema, await readJson(req));
     if (!validation.success) {
-      const auditLog = createAuditLog(req, userId, undefined, 'translate', undefined, 'translation', false, 'Validation failed', { errors: validation.errors.flatten() });
-      logAudit(auditLog);
       return NextResponse.json(
         { error: 'Validation failed', details: validation.errors.flatten() },
         { status: 400 }
@@ -66,7 +59,7 @@ export async function POST(req: NextRequest) {
       // In dev mode, return mock instead of 502
       if (process.env.NODE_ENV === 'development') {
         const mockTranslation = text === "Hallo Welt" ? "Hello World" : `[Translated to ${targetLang.toUpperCase()}] ${text}`;
-        return NextResponse.json({ success: true, translatedText: mockTranslation, mock: true, deepLError: errText });
+        return NextResponse.json({ success: true, translatedText: mockTranslation, mock: true });
       }
       const auditLog = createAuditLog(req, userId, undefined, 'translate', undefined, 'translation', false, `DeepL API error: ${response.status}`);
       logAudit(auditLog);
@@ -85,22 +78,19 @@ export async function POST(req: NextRequest) {
     logAudit(auditLog);
 
     return NextResponse.json({ success: true, translatedText }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Translate API Error:", error);
-    const auditLog = createAuditLog(req, userId, undefined, 'translate', undefined, 'translation', false, error.message || 'Failed to translate', {
+    logAudit(createAuditLog(req, userId, undefined, 'translate', undefined, 'translation', false, errorMessage(error), {
       durationMs: Date.now() - startTime,
-    });
-    logAudit(auditLog);
+    }));
 
     // In dev mode, return mock on any error
     if (process.env.NODE_ENV === 'development') {
-      const mockTranslation = `[Translated to ${targetLang?.toUpperCase() || 'EN'}] ${text || ''}`;
-      return NextResponse.json({ success: true, translatedText: mockTranslation, mock: true, error: error.message });
+      return NextResponse.json({ success: true, translatedText: `[Translated to ${targetLang?.toUpperCase() || 'EN'}] ${text || ''}`, mock: true });
     }
-
-    return NextResponse.json(
-      { error: 'Failed to translate' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to translate' }, { status: 500 });
   }
 }
